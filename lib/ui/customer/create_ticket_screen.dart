@@ -149,7 +149,8 @@ class _CustomerCreateTicketScreenState
             backgroundColor: AppColors.success,
           ),
         );
-        Navigator.pop(context);
+        // Pop with true to indicate success
+        Navigator.pop(context, true);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -211,6 +212,23 @@ class _CustomerCreateTicketScreenState
                         );
                       }).toList(),
                       onChanged: (value) {
+                        print('\n===== CATEGORY SELECTED =====');
+                        print('Category: ${value?.name}');
+                        print('Category ID: ${value?.id}');
+                        print('SubCategories data: ${value?.subCategories}');
+                        print('Projects data: ${value?.projects}');
+                        print('hasSubCategories getter: ${value?.hasSubCategories}');
+                        print('hasProjects getter: ${value?.hasProjects}');
+                        if (value?.subCategories != null) {
+                          print('SubCategories length: ${value!.subCategories!.length}');
+                          print('SubCategories items: ${value.subCategories!.map((e) => e.name).toList()}');
+                        }
+                        if (value?.projects != null) {
+                          print('Projects length: ${value!.projects!.length}');
+                          print('Projects items: ${value.projects!.map((e) => e.name).toList()}');
+                        }
+                        print('==============================\n');
+                        
                         setState(() {
                           _selectedCategory = value;
                           _selectedSubCategory = null;
@@ -225,10 +243,9 @@ class _CustomerCreateTicketScreenState
                     const SizedBox(height: 16),
 
                     // SubCategory (conditional)
-                    if (_selectedCategory != null &&
-                        _selectedCategory!.hasSubCategories)
+                    if (_selectedCategory != null && _selectedCategory!.hasSubCategories)
                       DropdownButtonFormField<SubCategoryModel>(
-                        initialValue: _selectedSubCategory,
+                        value: _selectedSubCategory,
                         decoration: const InputDecoration(
                           labelText: 'Sub Category *',
                           prefixIcon: Icon(Icons.category_outlined),
@@ -245,22 +262,19 @@ class _CustomerCreateTicketScreenState
                           });
                         },
                         validator: (value) {
-                          if (_selectedCategory!.hasSubCategories &&
-                              value == null) {
+                          if (_selectedCategory!.hasSubCategories && value == null) {
                             return 'Sub category is required';
                           }
                           return null;
                         },
                       ),
-                    if (_selectedCategory != null &&
-                        _selectedCategory!.hasSubCategories)
+                    if (_selectedCategory != null && _selectedCategory!.hasSubCategories)
                       const SizedBox(height: 16),
 
                     // Project (conditional)
-                    if (_selectedCategory != null &&
-                        _selectedCategory!.hasProjects)
+                    if (_selectedCategory != null && _selectedCategory!.hasProjects)
                       DropdownButtonFormField<ProjectModel>(
-                        initialValue: _selectedProject,
+                        value: _selectedProject,
                         decoration: const InputDecoration(
                           labelText: 'Project *',
                           prefixIcon: Icon(Icons.work),
@@ -283,8 +297,7 @@ class _CustomerCreateTicketScreenState
                           return null;
                         },
                       ),
-                    if (_selectedCategory != null &&
-                        _selectedCategory!.hasProjects)
+                    if (_selectedCategory != null && _selectedCategory!.hasProjects)
                       const SizedBox(height: 16),
 
                     // Message
@@ -308,6 +321,7 @@ class _CustomerCreateTicketScreenState
 
                     // Request To
                     DropdownButtonFormField<String>(
+                      initialValue: null,
                       decoration: const InputDecoration(
                         labelText: 'Request To *',
                         prefixIcon: Icon(Icons.person),
@@ -357,7 +371,7 @@ class _CustomerCreateTicketScreenState
 
                     // Envato Support
                     DropdownButtonFormField<String>(
-                      value: _selectedEnvatoSupport,
+                      initialValue: _selectedEnvatoSupport,
                       decoration: const InputDecoration(
                         labelText: 'Envato Support',
                         prefixIcon: Icon(Icons.support),

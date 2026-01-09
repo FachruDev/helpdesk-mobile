@@ -24,6 +24,8 @@ class TicketCard extends StatelessWidget {
         return AppColors.statusSolved;
       case TicketStatus.closed:
         return AppColors.statusClosed;
+      case TicketStatus.cancelled:
+        return AppColors.error;
     }
   }
 
@@ -89,52 +91,111 @@ class TicketCard extends StatelessWidget {
               ),
               const SizedBox(height: 8),
 
-              // Message Preview
-              Text(
-                ticket.message,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: AppColors.textSecondary,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
+              // Category & Priority
+              Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                children: [
+                  if (ticket.categoryName != null)
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.category_outlined,
+                          size: 14,
+                          color: AppColors.textHint,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          ticket.categoryName!,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  if (ticket.priority != null)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.warning.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        ticket.priority!,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.warning,
+                        ),
+                      ),
+                    ),
+                ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
 
-              // Footer: Category & Date
+              // Request To
+              if (ticket.requestToName != null)
+                Row(
+                  children: [
+                    Icon(
+                      Icons.person_outline,
+                      size: 14,
+                      color: AppColors.textHint,
+                    ),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        'To: ${ticket.requestToName}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              if (ticket.requestToName != null)
+                const SizedBox(height: 8),
+
+              // Footer: Date & Last Reply
               Row(
                 children: [
                   Icon(
-                    Icons.category_outlined,
-                    size: 16,
-                    color: AppColors.textHint,
-                  ),
-                  const SizedBox(width: 4),
-                  Expanded(
-                    child: Text(
-                      ticket.categoryName ?? 'Unknown',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textHint,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Icon(
                     Icons.access_time,
-                    size: 16,
+                    size: 14,
                     color: AppColors.textHint,
                   ),
                   const SizedBox(width: 4),
                   Text(
                     DateFormat('dd MMM yyyy').format(ticket.createdAt),
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: 11,
                       color: AppColors.textHint,
                     ),
                   ),
+                  if (ticket.lastReply != null) ...[
+                    const SizedBox(width: 12),
+                    Icon(
+                      Icons.reply,
+                      size: 14,
+                      color: AppColors.textHint,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Last: ${DateFormat('dd MMM').format(ticket.lastReply!)}',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: AppColors.textHint,
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ],

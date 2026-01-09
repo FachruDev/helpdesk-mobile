@@ -95,11 +95,24 @@ class _CustomerTicketDetailScreenState
 
     if (mounted) {
       if (response.success) {
-        _replyController.clear();
-        _selectedFiles.clear();
+        setState(() {
+          _replyController.clear();
+          _selectedFiles = [];
+        });
         
-        // Refresh ticket detail
+        // Refresh ticket detail to show new reply
         ref.invalidate(customerTicketDetailProvider(widget.ticketId));
+        
+        // Scroll to bottom to show new reply
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (_scrollController.hasClients) {
+            _scrollController.animateTo(
+              _scrollController.position.maxScrollExtent,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeOut,
+            );
+          }
+        });
         
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -245,7 +258,7 @@ class _CustomerTicketDetailScreenState
 
             // Message
             Text(
-              ticket.message,
+              ticket.message ?? '',
               style: TextStyle(
                 fontSize: 15,
                 color: AppColors.textSecondary,
@@ -280,7 +293,9 @@ class _CustomerTicketDetailScreenState
             _buildInfoRow(
               Icons.update,
               'Updated',
-              DateFormat('dd MMM yyyy, HH:mm').format(ticket.updatedAt),
+              ticket.updatedAt != null
+                  ? DateFormat('dd MMM yyyy, HH:mm').format(ticket.updatedAt!)
+                  : 'N/A',
             ),
           ],
         ),

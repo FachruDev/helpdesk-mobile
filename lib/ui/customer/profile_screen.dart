@@ -3,11 +3,27 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helpdesk_mobile/config/app_colors.dart';
 import 'package:helpdesk_mobile/states/customer/customer_auth_provider.dart';
 
-class CustomerProfileScreen extends ConsumerWidget {
+class CustomerProfileScreen extends ConsumerStatefulWidget {
   const CustomerProfileScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<CustomerProfileScreen> createState() => _CustomerProfileScreenState();
+}
+
+class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Fetch user profile when screen opens
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (ref.read(customerAuthProvider).user == null) {
+        ref.read(customerAuthProvider.notifier).fetchProfile();
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final authState = ref.watch(customerAuthProvider);
     final user = authState.user;
 

@@ -29,9 +29,23 @@ class CustomerTicketRepository {
 
       if (response.statusCode == 200) {
         final categoriesData = responseData['data'] ?? responseData['categories'] ?? [];
+        
+        // Debug: Print raw API response
+        print('\\n===== CATEGORIES API RESPONSE =====');
+        print('Response data: ${jsonEncode(responseData)}');
+        print('Categories count: ${(categoriesData as List).length}');
+        
         final categories = (categoriesData as List)
-            .map((e) => CategoryModel.fromJson(e))
+            .map((e) {
+              print('\\nCategory raw data: ${jsonEncode(e)}');
+              final cat = CategoryModel.fromJson(e);
+              print('Parsed - ID: ${cat.id}, Name: ${cat.name}');
+              print('Parsed - hasSubCategories: ${cat.hasSubCategories}, hasProjects: ${cat.hasProjects}');
+              return cat;
+            })
             .toList();
+        
+        print('====================================\\n');
         
         return ApiResponse.success(categories);
       }
@@ -113,6 +127,16 @@ class CustomerTicketRepository {
 
       if (response.statusCode == 200) {
         final ticketsData = responseData['data'] ?? responseData['tickets'] ?? [];
+        
+        // Debug: Print API response
+        print('\n===== TICKETS API RESPONSE =====');
+        print('Success: ${responseData['success']}');
+        print('Tickets count: ${(ticketsData as List).length}');
+        if ((ticketsData as List).isNotEmpty) {
+          print('First ticket: ${jsonEncode(ticketsData[0])}');
+        }
+        print('================================\n');
+        
         final tickets = (ticketsData as List)
             .map((e) => TicketModel.fromJson(e))
             .toList();
@@ -148,6 +172,19 @@ class CustomerTicketRepository {
 
       if (response.statusCode == 200) {
         final ticketData = responseData['data'] ?? responseData['ticket'];
+        
+        // Debug: Print detail API response
+        print('\n===== TICKET DETAIL API RESPONSE =====');
+        print('Success: ${responseData['success']}');
+        print('Ticket ID: ${ticketData?['ticket_id']}');
+        print('Has comments: ${ticketData?['comments'] != null}');
+        if (ticketData?['comments'] != null) {
+          print('Comments count: ${(ticketData!['comments'] as List).length}');
+          if ((ticketData['comments'] as List).isNotEmpty) {
+            print('First comment: ${jsonEncode(ticketData['comments'][0])}');
+          }
+        }
+        print('======================================\n');
         
         if (ticketData != null) {
           final ticket = TicketModel.fromJson(ticketData);

@@ -2,7 +2,8 @@ enum TicketStatus {
   newTicket('New'),
   inProgress('Inprogress'),
   solved('Solved'),
-  closed('Closed');
+  closed('Closed'),
+  cancelled('Cancelled');
 
   final String value;
   const TicketStatus(this.value);
@@ -18,6 +19,8 @@ enum TicketStatus {
         return TicketStatus.solved;
       case 'closed':
         return TicketStatus.closed;
+      case 'cancelled':
+        return TicketStatus.cancelled;
       default:
         return TicketStatus.newTicket;
     }
@@ -33,6 +36,8 @@ enum TicketStatus {
         return 'Solved';
       case TicketStatus.closed:
         return 'Closed';
+      case TicketStatus.cancelled:
+        return 'Cancelled';
     }
   }
 }

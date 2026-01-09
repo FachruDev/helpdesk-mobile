@@ -146,28 +146,34 @@ class _CustomerDashboardScreenState extends ConsumerState<CustomerDashboardScree
                       final ticket = ticketState.tickets[index];
                       return TicketCard(
                         ticket: ticket,
-                        onTap: () {
-                          Navigator.push(
+                        onTap: () async {
+                          await Navigator.push(
                             context,
                             MaterialPageRoute(
                               builder: (_) => CustomerTicketDetailScreen(
                                 ticketId: ticket.ticketId,
                               ),
                             ),
-                          ).then((_) => _refreshTickets());
+                          );
+                          // Refresh tickets when returning from detail
+                          _refreshTickets();
                         },
                       );
                     },
                   ),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          Navigator.push(
+        onPressed: () async {
+          final result = await Navigator.push(
             context,
             MaterialPageRoute(
               builder: (_) => const CustomerCreateTicketScreen(),
             ),
-          ).then((_) => _refreshTickets());
+          );
+          // Refresh tickets if ticket was created successfully
+          if (result == true) {
+            await _refreshTickets();
+          }
         },
         icon: const Icon(Icons.add),
         label: const Text('New Ticket'),
@@ -301,7 +307,7 @@ class _CustomerDashboardScreenState extends ConsumerState<CustomerDashboardScree
   Widget _buildDrawerItem({
     required IconData icon,
     required String title,
-    required VoidCallback onTap,
+    required VoidCallback onTap,  
   }) {
     return ListTile(
       leading: Icon(icon, color: AppColors.white),

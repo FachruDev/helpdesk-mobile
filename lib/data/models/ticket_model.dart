@@ -3,74 +3,96 @@ import 'package:helpdesk_mobile/data/enums/ticket_status.dart';
 class TicketModel {
   final String ticketId;
   final String subject;
-  final String message;
+  final String? message; // Optional - not in list response
   final TicketStatus status;
-  final int categoryId;
+  final String? replyStatus; // From API: replystatus
+  final String? priority; // From API: priority
+  final int? categoryId;
   final String? categoryName;
   final int? subCategoryId;
   final String? subCategoryName;
   final String? project;
   final String? requestToUserId;
   final String? requestToOther;
+  final String? requestToName; // From API: request_to_name
   final String? envatoSupport;
-  final String customerName;
-  final String customerEmail;
+  final String? customerName;
+  final String? customerEmail;
   final String? assignedTo;
   final DateTime createdAt;
-  final DateTime updatedAt;
+  final DateTime? updatedAt;
+  final DateTime? lastReply; // From API: last_reply
   final List<TicketReplyModel>? replies;
   final List<AttachmentModel>? attachments;
 
   TicketModel({
     required this.ticketId,
     required this.subject,
-    required this.message,
+    this.message,
     required this.status,
-    required this.categoryId,
+    this.replyStatus,
+    this.priority,
+    this.categoryId,
     this.categoryName,
     this.subCategoryId,
     this.subCategoryName,
     this.project,
     this.requestToUserId,
     this.requestToOther,
+    this.requestToName,
     this.envatoSupport,
-    required this.customerName,
-    required this.customerEmail,
+    this.customerName,
+    this.customerEmail,
     this.assignedTo,
     required this.createdAt,
-    required this.updatedAt,
+    this.updatedAt,
+    this.lastReply,
     this.replies,
     this.attachments,
   });
 
   factory TicketModel.fromJson(Map<String, dynamic> json) {
     return TicketModel(
-      ticketId: json['ticket_id'] ?? json['id'] ?? '',
+      ticketId: json['ticket_id']?.toString() ?? json['id']?.toString() ?? '',
       subject: json['subject'] ?? '',
-      message: json['message'] ?? '',
+      message: json['message'], // Optional in list response
       status: TicketStatus.fromString(json['status'] ?? 'New'),
-      categoryId: json['category_id'] ?? 0,
-      categoryName: json['category_name'] ?? json['category']?['name'],
+      replyStatus: json['replystatus'],
+      priority: json['priority'],
+      categoryId: json['category_id'],
+      // category can be string (in list) or object (in detail)
+      categoryName: json['category'] is String 
+          ? json['category'] 
+          : json['category']?['name'] ?? json['category_name'],
       subCategoryId: json['subcategory_id'] ?? json['subscategory'],
       subCategoryName: json['subcategory_name'],
       project: json['project'],
-      requestToUserId: json['request_to_user_id'],
+      requestToUserId: json['request_to_user_id']?.toString(),
       requestToOther: json['request_to_other'],
+      requestToName: json['request_to_name'],
       envatoSupport: json['envato_support'],
-      customerName: json['customer_name'] ?? json['customer']?['name'] ?? '',
-      customerEmail: json['customer_email'] ?? json['customer']?['email'] ?? '',
+      customerName: json['customer_name'] ?? json['customer']?['name'],
+      customerEmail: json['customer_email'] ?? json['customer']?['email'],
       assignedTo: json['assigned_to'],
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'])
           : DateTime.now(),
       updatedAt: json['updated_at'] != null
           ? DateTime.parse(json['updated_at'])
-          : DateTime.now(),
-      replies: json['replies'] != null
-          ? (json['replies'] as List)
+          : null,
+      lastReply: json['last_reply'] != null
+          ? DateTime.parse(json['last_reply'])
+          : null,
+      // Handle both 'replies' (old) and 'comments' (detail API)
+      replies: json['comments'] != null
+          ? (json['comments'] as List)
               .map((e) => TicketReplyModel.fromJson(e))
               .toList()
-          : null,
+          : json['replies'] != null
+              ? (json['replies'] as List)
+                  .map((e) => TicketReplyModel.fromJson(e))
+                  .toList()
+              : null,
       attachments: json['attachments'] != null
           ? (json['attachments'] as List)
               .map((e) => AttachmentModel.fromJson(e))
@@ -97,7 +119,7 @@ class TicketModel {
       'customer_email': customerEmail,
       'assigned_to': assignedTo,
       'created_at': createdAt.toIso8601String(),
-      'updated_at': updatedAt.toIso8601String(),
+      'updated_at': updatedAt?.toIso8601String(),
       'replies': replies?.map((e) => e.toJson()).toList(),
       'attachments': attachments?.map((e) => e.toJson()).toList(),
     };
@@ -122,11 +144,25 @@ class TicketReplyModel {
   });
 
   factory TicketReplyModel.fromJson(Map<String, dynamic> json) {
+    // Handle both old format and new format with 'author' object
+    String userName = '';
+    String userRole = 'customer';
+    
+    if (json['author'] != null) {
+      // New format from detail API
+      userName = json['author']['name'] ?? '';
+      userRole = json['author']['type'] ?? 'customer';
+    } else {
+      // Old format
+      userName = json['user_name'] ?? json['user']?['name'] ?? '';
+      userRole = json['user_role'] ?? json['user']?['role'] ?? 'customer';
+    }
+    
     return TicketReplyModel(
       id: json['id'] ?? 0,
       comment: json['comment'] ?? '',
-      userName: json['user_name'] ?? json['user']?['name'] ?? '',
-      userRole: json['user_role'] ?? json['user']?['role'] ?? 'customer',
+      userName: userName,
+      userRole: userRole,
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'])
           : DateTime.now(),
