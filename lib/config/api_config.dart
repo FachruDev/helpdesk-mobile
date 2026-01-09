@@ -15,11 +15,20 @@ class ApiConfig {
   static const String customerEmployees = '/api/mobile/employees';
   static const String customerTickets = '/api/mobile/tickets';
   
+  static String customerCategoryExtras(int categoryId) =>
+      '/api/mobile/categories/$categoryId/extras';
+  
   static String customerTicketDetail(String ticketId) =>
       '/api/mobile/tickets/$ticketId';
   
+  static String customerTicketReplies(String ticketId) =>
+      '/api/mobile/tickets/$ticketId/replies';
+  
   static String customerTicketReply(String ticketId) =>
       '/api/mobile/tickets/$ticketId/reply';
+  
+  static String customerEditReply(String ticketId, int commentId) =>
+      '/api/mobile/tickets/$ticketId/reply/$commentId/edit';
 
   // Internal Endpoints
   static const String internalLogin = '/api/mobile/internal/login';
@@ -29,11 +38,20 @@ class ApiConfig {
   static const String internalEmployees = '/api/mobile/internal/employees';
   static const String internalTickets = '/api/mobile/internal/tickets';
   
+  static String internalCategoryExtras(int categoryId) =>
+      '/api/mobile/internal/categories/$categoryId/extras';
+  
   static String internalTicketDetail(String ticketId) =>
       '/api/mobile/internal/tickets/$ticketId';
   
+  static String internalTicketReplies(String ticketId) =>
+      '/api/mobile/internal/tickets/$ticketId/replies';
+  
   static String internalTicketReply(String ticketId) =>
       '/api/mobile/internal/tickets/$ticketId/reply';
+  
+  static String internalEditReply(String ticketId, int commentId) =>
+      '/api/mobile/internal/tickets/$ticketId/reply/$commentId/edit';
 
   // Headers
   static Map<String, String> headers({String? token}) {

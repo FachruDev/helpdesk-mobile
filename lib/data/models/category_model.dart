@@ -4,6 +4,7 @@ class CategoryModel {
   final String? description;
   final List<SubCategoryModel>? subCategories;
   final List<ProjectModel>? projects;
+  final bool? envatoRequired;
 
   CategoryModel({
     required this.id,
@@ -11,6 +12,7 @@ class CategoryModel {
     this.description,
     this.subCategories,
     this.projects,
+    this.envatoRequired,
   });
 
   factory CategoryModel.fromJson(Map<String, dynamic> json) {
@@ -18,6 +20,7 @@ class CategoryModel {
       id: json['id'] ?? 0,
       name: json['name'] ?? '',
       description: json['description'],
+      envatoRequired: json['envato_required'],
       subCategories: json['subcategories'] != null
           ? (json['subcategories'] as List)
               .map((e) => SubCategoryModel.fromJson(e))
@@ -94,4 +97,36 @@ class ProjectModel {
       'name': name,
     };
   }
+}
+
+/// Model for category extras response
+class CategoryExtrasModel {
+  final List<SubCategoryModel> subCategories;
+  final List<ProjectModel> projects;
+  final bool envatoRequired;
+
+  CategoryExtrasModel({
+    required this.subCategories,
+    required this.projects,
+    required this.envatoRequired,
+  });
+
+  factory CategoryExtrasModel.fromJson(Map<String, dynamic> json) {
+    return CategoryExtrasModel(
+      subCategories: json['subcategories'] != null
+          ? (json['subcategories'] as List)
+              .map((e) => SubCategoryModel.fromJson(e))
+              .toList()
+          : [],
+      projects: json['projects'] != null
+          ? (json['projects'] as List)
+              .map((e) => ProjectModel.fromJson(e))
+              .toList()
+          : [],
+      envatoRequired: json['envato_required'] ?? false,
+    );
+  }
+
+  bool get hasSubCategories => subCategories.isNotEmpty;
+  bool get hasProjects => projects.isNotEmpty;
 }

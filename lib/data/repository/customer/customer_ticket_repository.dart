@@ -59,6 +59,45 @@ class CustomerTicketRepository {
     }
   }
 
+  /// Get category extras (subcategories, projects, envato_required)
+  Future<ApiResponse<CategoryExtrasModel>> getCategoryExtras(int categoryId) async {
+    try {
+      final token = await _getToken();
+      if (token == null) return ApiResponse.error('No token found');
+
+      final url = Uri.parse(
+        '${ApiConfig.baseUrl}${ApiConfig.customerCategoryExtras(categoryId)}',
+      );
+      final response = await http.get(
+        url,
+        headers: ApiConfig.headers(token: token),
+      );
+
+      final Map<String, dynamic> responseData = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        final extrasData = responseData['data'];
+        
+        print('\n===== CATEGORY EXTRAS API RESPONSE =====');
+        print('Category ID: $categoryId');
+        print('Extras data: ${jsonEncode(extrasData)}');
+        print('========================================\n');
+        
+        if (extrasData != null) {
+          final extras = CategoryExtrasModel.fromJson(extrasData);
+          return ApiResponse.success(extras);
+        }
+      }
+
+      return ApiResponse.error(
+        responseData['message'] ?? 'Failed to fetch category extras',
+        statusCode: response.statusCode,
+      );
+    } catch (e) {
+      return ApiResponse.error('Network error: ${e.toString()}');
+    }
+  }
+
   /// Get all employees
   Future<ApiResponse<List<EmployeeModel>>> getEmployees() async {
     try {
@@ -349,6 +388,91 @@ class CustomerTicketRepository {
 
       return ApiResponse.error(
         responseData['message'] ?? 'Failed to send reply',
+        statusCode: response.statusCode,
+        errors: responseData['errors'] as Map<String, dynamic>?,
+      );
+    } catch (e) {
+      return ApiResponse.error('Network error: ${e.toString()}');
+    }
+  }
+
+  /// Get ticket replies with attachments
+  Future<ApiResponse<List<TicketReplyModel>>> getTicketReplies(String ticketId) async {
+    try {
+      final token = await _getToken();
+      if (token == null) return ApiResponse.error('No token found');
+
+      final url = Uri.parse(
+        '${ApiConfig.baseUrl}${ApiConfig.customerTicketReplies(ticketId)}',
+      );
+
+      final response = await http.get(
+        url,
+        headers: ApiConfig.headers(token: token),
+      );
+
+      final Map<String, dynamic> responseData = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        final repliesData = responseData['data'] ?? [];
+        
+        print('\n===== TICKET REPLIES API RESPONSE =====');
+        print('Ticket ID: $ticketId');
+        print('Replies count: ${(repliesData as List).length}');
+        print('========================================\n');
+        
+        final replies = (repliesData as List)
+            .map((e) => TicketReplyModel.fromJson(e))
+            .toList();
+        
+        return ApiResponse.success(replies);
+      }
+
+      return ApiResponse.error(
+        responseData['message'] ?? 'Failed to fetch replies',
+        statusCode: response.statusCode,
+      );
+    } catch (e) {
+      return ApiResponse.error('Network error: ${e.toString()}');
+    }
+  }
+
+  /// Edit latest reply (only editable replies)
+  Future<ApiResponse<TicketReplyModel>> editReply({
+    required String ticketId,
+    required int commentId,
+    required String comment,
+  }) async {
+    try {
+      final token = await _getToken();
+      if (token == null) return ApiResponse.error('No token found');
+
+      final url = Uri.parse(
+        '${ApiConfig.baseUrl}${ApiConfig.customerEditReply(ticketId, commentId)}',
+      );
+
+      final response = await http.post(
+        url,
+        headers: ApiConfig.headers(token: token),
+        body: jsonEncode({'comment': comment}),
+      );
+
+      final Map<String, dynamic> responseData = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        final replyData = responseData['data'];
+        
+        if (replyData != null) {
+          final reply = TicketReplyModel.fromJson(replyData);
+          return ApiResponse.success(
+            reply,
+            message: responseData['message'] ?? 'Reply updated successfully',
+          );
+        }
+      }
+
+      return ApiResponse.error(
+        responseData['message'] ?? 'Failed to edit reply',
         statusCode: response.statusCode,
         errors: responseData['errors'] as Map<String, dynamic>?,
       );

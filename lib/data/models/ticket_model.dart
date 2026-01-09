@@ -133,6 +133,7 @@ class TicketReplyModel {
   final String userRole;
   final DateTime createdAt;
   final List<AttachmentModel>? attachments;
+  final bool editable;
 
   TicketReplyModel({
     required this.id,
@@ -141,6 +142,7 @@ class TicketReplyModel {
     required this.userRole,
     required this.createdAt,
     this.attachments,
+    this.editable = false,
   });
 
   factory TicketReplyModel.fromJson(Map<String, dynamic> json) {
@@ -171,6 +173,7 @@ class TicketReplyModel {
               .map((e) => AttachmentModel.fromJson(e))
               .toList()
           : null,
+      editable: json['editable'] ?? false,
     );
   }
 

@@ -5,9 +5,51 @@ import 'package:file_picker/file_picker.dart';
 import 'package:helpdesk_mobile/config/app_colors.dart';
 import 'package:helpdesk_mobile/data/models/category_model.dart';
 import 'package:helpdesk_mobile/data/models/employee_model.dart';
+import 'package:helpdesk_mobile/data/repository/customer/customer_ticket_repository.dart';
 import 'package:helpdesk_mobile/states/customer/customer_category_provider.dart';
 import 'package:helpdesk_mobile/states/customer/customer_employee_provider.dart';
 import 'package:helpdesk_mobile/states/customer/customer_ticket_provider.dart';
+import 'package:helpdesk_mobile/ui/shared/widgets/searchable_dropdown.dart';
+
+// Helper class for Request To dropdown
+class RequestToOption {
+  final String id;
+  final String name;
+  final bool isOther;
+
+  RequestToOption({
+    required this.id,
+    required this.name,
+    this.isOther = false,
+  });
+
+  factory RequestToOption.fromEmployee(EmployeeModel employee) {
+    return RequestToOption(
+      id: employee.id.toString(),
+      name: employee.name,
+      isOther: false,
+    );
+  }
+
+  factory RequestToOption.other() {
+    return RequestToOption(
+      id: 'other',
+      name: 'Other',
+      isOther: true,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is RequestToOption &&
+          runtimeType == other.runtimeType &&
+          id == other.id;
+
+  @override
+  int get hashCode => id.hashCode;
+}
+
 
 class CustomerCreateTicketScreen extends ConsumerStatefulWidget {
   const CustomerCreateTicketScreen({super.key});
@@ -32,6 +74,15 @@ class _CustomerCreateTicketScreenState
   bool _isRequestToOther = false;
   List<File> _selectedFiles = [];
   bool _isSubmitting = false;
+  
+  // Category extras state
+  List<SubCategoryModel> _availableSubCategories = [];
+  List<ProjectModel> _availableProjects = [];
+  bool _envatoRequired = false;
+  bool _loadingExtras = false;
+  
+  // Request To helper
+  RequestToOption? _selectedRequestTo;
 
   @override
   void initState() {
@@ -95,6 +146,33 @@ class _CustomerCreateTicketScreenState
   void _removeFile(int index) {
     setState(() {
       _selectedFiles.removeAt(index);
+    });
+  }
+
+  Future<void> _fetchCategoryExtras(int categoryId) async {
+    setState(() => _loadingExtras = true);
+
+    final repository = CustomerTicketRepository();
+    final response = await repository.getCategoryExtras(categoryId);
+
+    setState(() {
+      _loadingExtras = false;
+      
+      if (response.success && response.data != null) {
+        _availableSubCategories = response.data!.subCategories;
+        _availableProjects = response.data!.projects;
+        _envatoRequired = response.data!.envatoRequired;
+        
+        print('===== EXTRAS LOADED =====');
+        print('SubCategories: ${_availableSubCategories.length}');
+        print('Projects: ${_availableProjects.length}');
+        print('Envato Required: $_envatoRequired');
+        print('========================');
+      } else {
+        _availableSubCategories = [];
+        _availableProjects = [];
+        _envatoRequired = false;
+      }
     });
   }
 
@@ -198,42 +276,35 @@ class _CustomerCreateTicketScreenState
                     ),
                     const SizedBox(height: 16),
 
-                    // Category
-                    DropdownButtonFormField<CategoryModel>(
-                      value: _selectedCategory,
-                      decoration: const InputDecoration(
-                        labelText: 'Category *',
-                        prefixIcon: Icon(Icons.category),
-                      ),
-                      items: categoryState.categories.map((category) {
-                        return DropdownMenuItem(
-                          value: category,
-                          child: Text(category.name),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        print('\n===== CATEGORY SELECTED =====');
-                        print('Category: ${value?.name}');
-                        print('Category ID: ${value?.id}');
-                        print('SubCategories data: ${value?.subCategories}');
-                        print('Projects data: ${value?.projects}');
-                        print('hasSubCategories getter: ${value?.hasSubCategories}');
-                        print('hasProjects getter: ${value?.hasProjects}');
-                        if (value?.subCategories != null) {
-                          print('SubCategories length: ${value!.subCategories!.length}');
-                          print('SubCategories items: ${value.subCategories!.map((e) => e.name).toList()}');
+                    // Category - Searchable
+                    SearchableDropdown<CategoryModel>(
+                      labelText: 'Category *',
+                      prefixIcon: Icons.category,
+                      selectedItem: _selectedCategory,
+                      items: categoryState.categories,
+                      itemAsString: (category) => category.name,
+                      searchHint: 'Search category...',
+                      onChanged: (value) async {
+                        if (value != null) {
+                          setState(() {
+                            _selectedCategory = value;
+                            _selectedSubCategory = null;
+                            _selectedProject = null;
+                            _selectedEnvatoSupport = null;
+                          });
+                          
+                          // Fetch category extras
+                          await _fetchCategoryExtras(value.id);
+                        } else {
+                          setState(() {
+                            _selectedCategory = null;
+                            _selectedSubCategory = null;
+                            _selectedProject = null;
+                            _availableSubCategories = [];
+                            _availableProjects = [];
+                            _envatoRequired = false;
+                          });
                         }
-                        if (value?.projects != null) {
-                          print('Projects length: ${value!.projects!.length}');
-                          print('Projects items: ${value.projects!.map((e) => e.name).toList()}');
-                        }
-                        print('==============================\n');
-                        
-                        setState(() {
-                          _selectedCategory = value;
-                          _selectedSubCategory = null;
-                          _selectedProject = null;
-                        });
                       },
                       validator: (value) {
                         if (value == null) return 'Category is required';
@@ -242,62 +313,61 @@ class _CustomerCreateTicketScreenState
                     ),
                     const SizedBox(height: 16),
 
-                    // SubCategory (conditional)
-                    if (_selectedCategory != null && _selectedCategory!.hasSubCategories)
-                      DropdownButtonFormField<SubCategoryModel>(
-                        value: _selectedSubCategory,
-                        decoration: const InputDecoration(
-                          labelText: 'Sub Category *',
-                          prefixIcon: Icon(Icons.category_outlined),
+                    // Loading indicator for extras
+                    if (_loadingExtras)
+                      const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(16.0),
+                          child: CircularProgressIndicator(),
                         ),
-                        items: _selectedCategory!.subCategories!.map((sub) {
-                          return DropdownMenuItem(
-                            value: sub,
-                            child: Text(sub.name),
-                          );
-                        }).toList(),
+                      ),
+
+                    // SubCategory (conditional)
+                    if (!_loadingExtras && _availableSubCategories.isNotEmpty)
+                      SearchableDropdown<SubCategoryModel>(
+                        labelText: 'Sub Category *',
+                        prefixIcon: Icons.category_outlined,
+                        selectedItem: _selectedSubCategory,
+                        items: _availableSubCategories,
+                        itemAsString: (sub) => sub.name,
+                        searchHint: 'Search sub category...',
                         onChanged: (value) {
                           setState(() {
                             _selectedSubCategory = value;
                           });
                         },
                         validator: (value) {
-                          if (_selectedCategory!.hasSubCategories && value == null) {
+                          if (_availableSubCategories.isNotEmpty && value == null) {
                             return 'Sub category is required';
                           }
                           return null;
                         },
                       ),
-                    if (_selectedCategory != null && _selectedCategory!.hasSubCategories)
+                    if (!_loadingExtras && _availableSubCategories.isNotEmpty)
                       const SizedBox(height: 16),
 
                     // Project (conditional)
-                    if (_selectedCategory != null && _selectedCategory!.hasProjects)
-                      DropdownButtonFormField<ProjectModel>(
-                        value: _selectedProject,
-                        decoration: const InputDecoration(
-                          labelText: 'Project *',
-                          prefixIcon: Icon(Icons.work),
-                        ),
-                        items: _selectedCategory!.projects!.map((project) {
-                          return DropdownMenuItem(
-                            value: project,
-                            child: Text(project.name),
-                          );
-                        }).toList(),
+                    if (!_loadingExtras && _availableProjects.isNotEmpty)
+                      SearchableDropdown<ProjectModel>(
+                        labelText: 'Project *',
+                        prefixIcon: Icons.work,
+                        selectedItem: _selectedProject,
+                        items: _availableProjects,
+                        itemAsString: (project) => project.name,
+                        searchHint: 'Search project...',
                         onChanged: (value) {
                           setState(() {
                             _selectedProject = value;
                           });
                         },
                         validator: (value) {
-                          if (_selectedCategory!.hasProjects && value == null) {
+                          if (_availableProjects.isNotEmpty && value == null) {
                             return 'Project is required';
                           }
                           return null;
                         },
                       ),
-                    if (_selectedCategory != null && _selectedCategory!.hasProjects)
+                    if (!_loadingExtras && _availableProjects.isNotEmpty)
                       const SizedBox(height: 16),
 
                     // Message
@@ -319,33 +389,34 @@ class _CustomerCreateTicketScreenState
                     ),
                     const SizedBox(height: 16),
 
-                    // Request To
-                    DropdownButtonFormField<String>(
-                      initialValue: null,
-                      decoration: const InputDecoration(
-                        labelText: 'Request To *',
-                        prefixIcon: Icon(Icons.person),
-                      ),
+                    // Request To - Searchable
+                    SearchableDropdown<RequestToOption>(
+                      labelText: 'Request To *',
+                      prefixIcon: Icons.person,
+                      selectedItem: _selectedRequestTo,
                       items: [
-                        ...employeeState.employees.map((employee) {
-                          return DropdownMenuItem(
-                            value: employee.id.toString(),
-                            child: Text(employee.name),
-                          );
-                        }),
-                        const DropdownMenuItem(
-                          value: 'other',
-                          child: Text('Other'),
+                        ...employeeState.employees.map((e) => 
+                          RequestToOption.fromEmployee(e)
                         ),
+                        RequestToOption.other(),
                       ],
+                      itemAsString: (option) => option.name,
+                      searchHint: 'Search employee...',
                       onChanged: (value) {
                         setState(() {
-                          _isRequestToOther = value == 'other';
-                          if (value != 'other') {
+                          _selectedRequestTo = value;
+                          _isRequestToOther = value?.isOther ?? false;
+                          if (value != null && !value.isOther) {
                             _selectedEmployee = employeeState.employees
-                                .firstWhere((e) => e.id.toString() == value);
+                                .firstWhere((e) => e.id.toString() == value.id);
+                          } else {
+                            _selectedEmployee = null;
                           }
                         });
+                      },
+                      validator: (value) {
+                        if (value == null) return 'Request to is required';
+                        return null;
                       },
                     ),
                     const SizedBox(height: 16),
@@ -369,34 +440,37 @@ class _CustomerCreateTicketScreenState
                       ),
                     if (_isRequestToOther) const SizedBox(height: 16),
 
-                    // Envato Support
-                    DropdownButtonFormField<String>(
-                      initialValue: _selectedEnvatoSupport,
-                      decoration: const InputDecoration(
-                        labelText: 'Envato Support',
-                        prefixIcon: Icon(Icons.support),
+                    // Envato Support (conditional based on category)
+                    if (_envatoRequired)
+                      DropdownButtonFormField<String>(
+                        value: _selectedEnvatoSupport,
+                        decoration: const InputDecoration(
+                          labelText: 'Envato Support *',
+                          prefixIcon: Icon(Icons.support),
+                        ),
+                        items: const [
+                          DropdownMenuItem(
+                            value: 'Supported',
+                            child: Text('Supported'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'Not Supported',
+                            child: Text('Not Supported'),
+                          ),
+                        ],
+                        onChanged: (value) {
+                          setState(() {
+                            _selectedEnvatoSupport = value;
+                          });
+                        },
+                        validator: (value) {
+                          if (_envatoRequired && value == null) {
+                            return 'Envato support is required';
+                          }
+                          return null;
+                        },
                       ),
-                      items: const [
-                        DropdownMenuItem(
-                          value: null,
-                          child: Text('Not Applicable'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'Supported',
-                          child: Text('Supported'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'Not Supported',
-                          child: Text('Not Supported'),
-                        ),
-                      ],
-                      onChanged: (value) {
-                        setState(() {
-                          _selectedEnvatoSupport = value;
-                        });
-                      },
-                    ),
-                    const SizedBox(height: 24),
+                    if (_envatoRequired) const SizedBox(height: 16),
 
                     // File Picker
                     OutlinedButton.icon(
