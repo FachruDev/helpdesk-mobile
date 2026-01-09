@@ -28,6 +28,9 @@ class _CustomerTicketDetailScreenState
   final _scrollController = ScrollController();
   List<File> _selectedFiles = [];
   bool _isReplying = false;
+  String? _selectedStatus; // For status dropdown
+  bool _isEditMode = false;
+  TicketReplyModel? _editingReply;
 
   @override
   void dispose() {
@@ -85,11 +88,20 @@ class _CustomerTicketDetailScreenState
     setState(() => _isReplying = true);
 
     final repository = ref.read(customerReplyTicketProvider);
-    final response = await repository.replyTicket(
-      ticketId: widget.ticketId,
-      comment: _replyController.text.trim(),
-      files: _selectedFiles.isNotEmpty ? _selectedFiles : null,
-    );
+    
+    // Handle edit mode vs create mode
+    final response = _isEditMode && _editingReply != null
+        ? await repository.editReply(
+            ticketId: widget.ticketId,
+            commentId: _editingReply!.id,
+            comment: _replyController.text.trim(),
+          )
+        : await repository.replyTicket(
+            ticketId: widget.ticketId,
+            comment: _replyController.text.trim(),
+            status: _selectedStatus,
+            files: _selectedFiles.isNotEmpty ? _selectedFiles : null,
+          );
 
     setState(() => _isReplying = false);
 
@@ -98,6 +110,9 @@ class _CustomerTicketDetailScreenState
         setState(() {
           _replyController.clear();
           _selectedFiles = [];
+          _selectedStatus = null;
+          _isEditMode = false;
+          _editingReply = null;
         });
         
         // Refresh ticket detail to show new reply
@@ -115,8 +130,8 @@ class _CustomerTicketDetailScreenState
         });
         
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Reply sent successfully'),
+          SnackBar(
+            content: Text(_isEditMode ? 'Reply updated successfully' : 'Reply sent successfully'),
             backgroundColor: AppColors.success,
           ),
         );
@@ -129,6 +144,37 @@ class _CustomerTicketDetailScreenState
         );
       }
     }
+  }
+
+  void _startEditReply(TicketReplyModel reply) {
+    setState(() {
+      _isEditMode = true;
+      _editingReply = reply;
+      _replyController.text = reply.comment;
+      _selectedFiles = []; // Can't edit attachments
+      _selectedStatus = null;
+    });
+    
+    // Scroll to bottom to show input
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
+  void _cancelEdit() {
+    setState(() {
+      _isEditMode = false;
+      _editingReply = null;
+      _replyController.clear();
+      _selectedFiles = [];
+      _selectedStatus = null;
+    });
   }
 
   Color _getStatusColor(ticket) {
@@ -455,6 +501,18 @@ class _CustomerTicketDetailScreenState
                     ),
                   ),
                 ),
+                // Edit button for editable replies
+                if (reply.editable) ...[
+                  const SizedBox(width: 8),
+                  IconButton(
+                    icon: const Icon(Icons.edit, size: 18),
+                    onPressed: () => _startEditReply(reply),
+                    color: AppColors.primary,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    tooltip: 'Edit reply',
+                  ),
+                ],
               ],
             ),
             const SizedBox(height: 12),
@@ -510,8 +568,74 @@ class _CustomerTicketDetailScreenState
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Selected Files
-          if (_selectedFiles.isNotEmpty) ...[
+          // Edit mode indicator
+          if (_isEditMode) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.edit, size: 16, color: AppColors.primary),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Editing reply',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: _cancelEdit,
+                    child: const Text('Cancel', style: TextStyle(fontSize: 12)),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+
+          // Status dropdown (only for new replies, not edit)
+          if (!_isEditMode) ...[
+            DropdownButtonFormField<String>(
+              value: _selectedStatus,
+              decoration: InputDecoration(
+                labelText: 'Update Status (Optional)',
+                prefixIcon: const Icon(Icons.flag_outlined, size: 20),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                filled: true,
+                fillColor: AppColors.background,
+              ),
+              items: const [
+                DropdownMenuItem(value: null, child: Text('No change')),
+                DropdownMenuItem(value: 'New', child: Text('New')),
+                DropdownMenuItem(value: 'Inprogress', child: Text('In Progress')),
+                DropdownMenuItem(value: 'Solved', child: Text('Solved')),
+                DropdownMenuItem(value: 'Closed', child: Text('Closed')),
+                DropdownMenuItem(value: 'Cancelled', child: Text('Cancelled')),
+              ],
+              onChanged: (value) {
+                setState(() {
+                  _selectedStatus = value;
+                });
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+
+          // Selected Files (only for new replies)
+          if (!_isEditMode && _selectedFiles.isNotEmpty) ...[
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
@@ -543,16 +667,21 @@ class _CustomerTicketDetailScreenState
           // Input Row
           Row(
             children: [
+              // Attach button (disabled in edit mode)
               IconButton(
                 icon: const Icon(Icons.attach_file),
-                onPressed: _selectedFiles.length < 5 ? _pickFiles : null,
-                color: AppColors.primary,
+                onPressed: _isEditMode 
+                    ? null 
+                    : (_selectedFiles.length < 5 ? _pickFiles : null),
+                color: _isEditMode ? AppColors.textHint : AppColors.primary,
               ),
               Expanded(
                 child: TextField(
                   controller: _replyController,
                   decoration: InputDecoration(
-                    hintText: 'Type your reply...',
+                    hintText: _isEditMode 
+                        ? 'Edit your reply...' 
+                        : 'Type your reply...',
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(24),
                     ),
@@ -574,7 +703,7 @@ class _CustomerTicketDetailScreenState
                       ),
                     )
                   : IconButton(
-                      icon: const Icon(Icons.send),
+                      icon: Icon(_isEditMode ? Icons.check : Icons.send),
                       onPressed: _sendReply,
                       color: AppColors.primary,
                       iconSize: 28,
