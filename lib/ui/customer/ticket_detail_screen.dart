@@ -2,10 +2,10 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:helpdesk_mobile/config/app_colors.dart';
 import 'package:helpdesk_mobile/data/models/ticket_model.dart';
 import 'package:helpdesk_mobile/states/customer/customer_ticket_provider.dart';
+import 'package:helpdesk_mobile/states/customer/customer_ticket_replies_provider.dart';
 import 'package:helpdesk_mobile/ui/shared/widgets/attachment_viewer.dart';
 import 'package:intl/intl.dart';
 
@@ -115,8 +115,9 @@ class _CustomerTicketDetailScreenState
           _editingReply = null;
         });
         
-        // Refresh ticket detail to show new reply
+        // Refresh ticket detail and replies to show new reply
         ref.invalidate(customerTicketDetailProvider(widget.ticketId));
+        ref.invalidate(customerTicketRepliesProvider(widget.ticketId));
         
         // Scroll to bottom to show new reply
         Future.delayed(const Duration(milliseconds: 500), () {
@@ -195,6 +196,7 @@ class _CustomerTicketDetailScreenState
   @override
   Widget build(BuildContext context) {
     final ticketAsync = ref.watch(customerTicketDetailProvider(widget.ticketId));
+    final repliesAsync = ref.watch(customerTicketRepliesProvider(widget.ticketId));
 
     return Scaffold(
       appBar: AppBar(
@@ -205,7 +207,7 @@ class _CustomerTicketDetailScreenState
           if (ticket == null) {
             return const Center(child: Text('Ticket not found'));
           }
-          return _buildTicketDetail(ticket);
+          return _buildTicketDetail(ticket, repliesAsync);
         },
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, stack) => Center(
@@ -219,6 +221,7 @@ class _CustomerTicketDetailScreenState
               ElevatedButton(
                 onPressed: () {
                   ref.invalidate(customerTicketDetailProvider(widget.ticketId));
+                  ref.invalidate(customerTicketRepliesProvider(widget.ticketId));
                 },
                 child: const Text('Retry'),
               ),
@@ -229,7 +232,7 @@ class _CustomerTicketDetailScreenState
     );
   }
 
-  Widget _buildTicketDetail(TicketModel ticket) {
+  Widget _buildTicketDetail(TicketModel ticket, AsyncValue<List<TicketReplyModel>> repliesAsync) {
     return Column(
       children: [
         Expanded(
@@ -250,7 +253,7 @@ class _CustomerTicketDetailScreenState
                 const SizedBox(height: 16),
 
                 // Replies Section
-                _buildRepliesSection(ticket),
+                _buildRepliesSection(repliesAsync),
               ],
             ),
           ),
@@ -402,40 +405,94 @@ class _CustomerTicketDetailScreenState
     );
   }
 
-  Widget _buildRepliesSection(TicketModel ticket) {
-    if (ticket.replies == null || ticket.replies!.isEmpty) {
-      return Card(
+  Widget _buildRepliesSection(AsyncValue<List<TicketReplyModel>> repliesAsync) {
+    return repliesAsync.when(
+      data: (replies) {
+        if (replies.isEmpty) {
+          return Card(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Center(
+                child: Text(
+                  'No replies yet',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: AppColors.textHint,
+                  ),
+                ),
+              ),
+            ),
+          );
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(left: 4, bottom: 12),
+              child: Text(
+                'Replies (${replies.length})',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ),
+            ...replies.map((reply) => _buildReplyCard(reply)),
+          ],
+        );
+      },
+      loading: () => Card(
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Center(
-            child: Text(
-              'No replies yet',
-              style: TextStyle(
-                fontSize: 14,
-                color: AppColors.textHint,
-              ),
+            child: Column(
+              children: [
+                const CircularProgressIndicator(),
+                const SizedBox(height: 12),
+                Text(
+                  'Loading replies...',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: AppColors.textHint,
+                  ),
+                ),
+              ],
             ),
           ),
         ),
-      );
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 4, bottom: 12),
-          child: Text(
-            'Replies (${ticket.replies!.length})',
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
+      ),
+      error: (error, stack) => Card(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Center(
+            child: Column(
+              children: [
+                Icon(Icons.error_outline, size: 40, color: AppColors.error),
+                const SizedBox(height: 12),
+                Text(
+                  'Failed to load replies',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: AppColors.error,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '$error',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textHint,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
             ),
           ),
         ),
-        ...ticket.replies!.map((reply) => _buildReplyCard(reply)),
-      ],
+      ),
     );
   }
 

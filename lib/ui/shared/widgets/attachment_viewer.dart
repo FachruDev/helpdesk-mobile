@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:helpdesk_mobile/config/app_colors.dart';
 import 'package:helpdesk_mobile/data/models/ticket_model.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class AttachmentViewer extends StatelessWidget {
   final AttachmentModel attachment;
@@ -13,8 +14,9 @@ class AttachmentViewer extends StatelessWidget {
     this.isSmall = false,
   });
 
-  void _openAttachment(BuildContext context) {
+  void _openAttachment(BuildContext context) async {
     if (attachment.isImage) {
+      // Open image in full screen viewer
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -22,6 +24,13 @@ class AttachmentViewer extends StatelessWidget {
             appBar: AppBar(
               title: Text(attachment.fileName),
               backgroundColor: AppColors.black,
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.download),
+                  onPressed: () => _downloadFile(context),
+                  tooltip: 'Download',
+                ),
+              ],
             ),
             backgroundColor: AppColors.black,
             body: Center(
@@ -44,33 +53,91 @@ class AttachmentViewer extends StatelessWidget {
         ),
       );
     } else {
-      // For non-images, show a dialog or open in browser
+      // For non-images, show options dialog
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Text('File Download'),
-          content: Text('File: ${attachment.fileName}'),
+          title: const Text('File Options'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                attachment.fileName,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _formatFileSize(attachment.fileSize),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textHint,
+                ),
+              ),
+            ],
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Close'),
+              child: const Text('Cancel'),
             ),
-            ElevatedButton(
+            ElevatedButton.icon(
               onPressed: () {
-                // TODO: Implement file download or open in browser
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('File download feature coming soon'),
-                  ),
-                );
+                _downloadFile(context);
               },
-              child: const Text('Open'),
+              icon: const Icon(Icons.download, size: 18),
+              label: const Text('Download/Open'),
             ),
           ],
         ),
       );
     }
+  }
+
+  Future<void> _downloadFile(BuildContext context) async {
+    try {
+      final uri = Uri.parse(attachment.fileUrl);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Cannot open file'),
+              backgroundColor: AppColors.error,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error opening file: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
+
+  String _formatFileSize(int? bytes) {
+    if (bytes == null || bytes == 0) return 'Unknown size';
+    
+    const units = ['B', 'KB', 'MB', 'GB'];
+    int unitIndex = 0;
+    double size = bytes.toDouble();
+    
+    while (size >= 1024 && unitIndex < units.length - 1) {
+      size /= 1024;
+      unitIndex++;
+    }
+    
+    return '${size.toStringAsFixed(1)} ${units[unitIndex]}';
   }
 
   @override
