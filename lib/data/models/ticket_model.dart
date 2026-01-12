@@ -132,8 +132,10 @@ class TicketReplyModel {
   final String userName;
   final String userRole;
   final DateTime createdAt;
+  final DateTime? updatedAt;
   final List<AttachmentModel>? attachments;
   final bool editable;
+  final bool isEdited; // From API: is_edited flag
 
   TicketReplyModel({
     required this.id,
@@ -141,8 +143,10 @@ class TicketReplyModel {
     required this.userName,
     required this.userRole,
     required this.createdAt,
+    this.updatedAt,
     this.attachments,
     this.editable = false,
+    this.isEdited = false,
   });
 
   factory TicketReplyModel.fromJson(Map<String, dynamic> json) {
@@ -168,12 +172,16 @@ class TicketReplyModel {
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'])
           : DateTime.now(),
+      updatedAt: json['updated_at'] != null
+          ? DateTime.parse(json['updated_at'])
+          : null,
       attachments: json['attachments'] != null
           ? (json['attachments'] as List)
               .map((e) => AttachmentModel.fromJson(e))
               .toList()
           : null,
       editable: json['editable'] ?? false,
+      isEdited: json['is_edited'] ?? false,
     );
   }
 
@@ -184,7 +192,9 @@ class TicketReplyModel {
       'user_name': userName,
       'user_role': userRole,
       'created_at': createdAt.toIso8601String(),
+      'updated_at': updatedAt?.toIso8601String(),
       'attachments': attachments?.map((e) => e.toJson()).toList(),
+      'is_edited': isEdited,
     };
   }
 }

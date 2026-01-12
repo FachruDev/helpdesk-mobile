@@ -233,6 +233,8 @@ class _CustomerTicketDetailScreenState
   }
 
   Widget _buildTicketDetail(TicketModel ticket, AsyncValue<List<TicketReplyModel>> repliesAsync) {
+    final isTicketClosed = ticket.status.value.toLowerCase() == 'closed';
+    
     return Column(
       children: [
         Expanded(
@@ -254,13 +256,19 @@ class _CustomerTicketDetailScreenState
 
                 // Replies Section
                 _buildRepliesSection(repliesAsync),
+                
+                // Closed ticket notice
+                if (isTicketClosed) ...[
+                  const SizedBox(height: 16),
+                  _buildClosedTicketNotice(),
+                ],
               ],
             ),
           ),
         ),
 
-        // Reply Input
-        _buildReplyInput(),
+        // Reply Input (disabled if closed)
+        if (!isTicketClosed) _buildReplyInput(),
       ],
     );
   }
@@ -531,12 +539,27 @@ class _CustomerTicketDetailScreenState
                           color: AppColors.textPrimary,
                         ),
                       ),
-                      Text(
-                        DateFormat('dd MMM yyyy, HH:mm').format(reply.createdAt),
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AppColors.textHint,
-                        ),
+                      Row(
+                        children: [
+                          Text(
+                            DateFormat('dd MMM yyyy, HH:mm').format(reply.createdAt),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textHint,
+                            ),
+                          ),
+                          if (reply.isEdited) ...[
+                            const SizedBox(width: 4),
+                            Text(
+                              '• edited',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: AppColors.textHint,
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ],
                   ),
@@ -583,6 +606,19 @@ class _CustomerTicketDetailScreenState
                 height: 1.5,
               ),
             ),
+            
+            // Edited indicator (below comment)
+            if (reply.isEdited) ...[
+              const SizedBox(height: 4),
+              Text(
+                'edited',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: AppColors.textHint,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ],
 
             // Reply Attachments
             if (reply.attachments != null && reply.attachments!.isNotEmpty) ...[
@@ -598,6 +634,48 @@ class _CustomerTicketDetailScreenState
                 }).toList(),
               ),
             ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildClosedTicketNotice() {
+    return Card(
+      color: AppColors.statusClosed.withOpacity(0.1),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Icon(
+              Icons.lock_outline,
+              color: AppColors.statusClosed,
+              size: 24,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Ticket Closed',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.statusClosed,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'This ticket has been closed. No further actions can be taken.',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       ),
@@ -677,10 +755,7 @@ class _CustomerTicketDetailScreenState
               items: const [
                 DropdownMenuItem(value: null, child: Text('No change')),
                 DropdownMenuItem(value: 'New', child: Text('New')),
-                DropdownMenuItem(value: 'Inprogress', child: Text('In Progress')),
                 DropdownMenuItem(value: 'Solved', child: Text('Solved')),
-                DropdownMenuItem(value: 'Closed', child: Text('Closed')),
-                DropdownMenuItem(value: 'Cancelled', child: Text('Cancelled')),
               ],
               onChanged: (value) {
                 setState(() {
