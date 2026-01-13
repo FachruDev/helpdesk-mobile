@@ -548,17 +548,6 @@ class _CustomerTicketDetailScreenState
                               color: AppColors.textHint,
                             ),
                           ),
-                          if (reply.isEdited) ...[
-                            const SizedBox(width: 4),
-                            Text(
-                              '• edited',
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: AppColors.textHint,
-                                fontStyle: FontStyle.italic,
-                              ),
-                            ),
-                          ],
                         ],
                       ),
                     ],
@@ -598,27 +587,31 @@ class _CustomerTicketDetailScreenState
             const SizedBox(height: 12),
 
             // Reply Message
-            Text(
-              reply.comment,
-              style: const TextStyle(
-                fontSize: 14,
-                color: AppColors.textSecondary,
-                height: 1.5,
-              ),
-            ),
-            
-            // Edited indicator (below comment)
-            if (reply.isEdited) ...[
-              const SizedBox(height: 4),
-              Text(
-                'edited',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: AppColors.textHint,
-                  fontStyle: FontStyle.italic,
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  reply.comment,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: AppColors.textSecondary,
+                    height: 1.5,
+                  ),
                 ),
-              ),
-            ],
+                // Edited indicator (compact, below message)
+                if (reply.isEdited) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    '• edited',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: AppColors.textHint,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ],
+              ],
+            ),
 
             // Reply Attachments
             if (reply.attachments != null && reply.attachments!.isNotEmpty) ...[

@@ -5,9 +5,9 @@ class AppColors {
   AppColors._();
 
   // Primary Colors (from helpdesk web)
-  static const Color background = Color(0xFFF5F5F5); // Putih/Cream
-  static const Color primary = Color(0xFF17263A); // Biru Gelap
-  static const Color lightGray = Color(0xFFE0E0E0); // Abu-abu Muda
+  static const Color background = Color(0xFFF5F5F5);
+  static const Color primary = Color(0xFF17263A); 
+  static const Color lightGray = Color(0xFFE0E0E0);
 
   // Supporting Colors
   static const Color white = Color(0xFFFFFFFF);
