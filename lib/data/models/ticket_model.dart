@@ -131,6 +131,7 @@ class TicketReplyModel {
   final String comment;
   final String userName;
   final String userRole;
+  final String? userImageUrl;
   final DateTime createdAt;
   final DateTime? updatedAt;
   final List<AttachmentModel>? attachments;
@@ -142,6 +143,7 @@ class TicketReplyModel {
     required this.comment,
     required this.userName,
     required this.userRole,
+    this.userImageUrl,
     required this.createdAt,
     this.updatedAt,
     this.attachments,
@@ -153,15 +155,18 @@ class TicketReplyModel {
     // Handle both old format and new format with 'author' object
     String userName = '';
     String userRole = 'customer';
+    String? userImageUrl;
     
     if (json['author'] != null) {
       // New format from detail API
       userName = json['author']['name'] ?? '';
       userRole = json['author']['type'] ?? 'customer';
+      userImageUrl = json['author']['image_url'];
     } else {
       // Old format
       userName = json['user_name'] ?? json['user']?['name'] ?? '';
       userRole = json['user_role'] ?? json['user']?['role'] ?? 'customer';
+      userImageUrl = json['user_image_url'] ?? json['user']?['image_url'];
     }
     
     return TicketReplyModel(
@@ -169,6 +174,7 @@ class TicketReplyModel {
       comment: json['comment'] ?? '',
       userName: userName,
       userRole: userRole,
+      userImageUrl: userImageUrl,
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'])
           : DateTime.now(),
@@ -191,6 +197,7 @@ class TicketReplyModel {
       'comment': comment,
       'user_name': userName,
       'user_role': userRole,
+      'user_image_url': userImageUrl,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt?.toIso8601String(),
       'attachments': attachments?.map((e) => e.toJson()).toList(),

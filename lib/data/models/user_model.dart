@@ -4,6 +4,7 @@ class UserModel {
   final String email;
   final String? phone;
   final String? avatar;
+  final String? imageUrl;
   final String? company;
   final String role;
 
@@ -13,6 +14,7 @@ class UserModel {
     required this.email,
     this.phone,
     this.avatar,
+    this.imageUrl,
     this.company,
     required this.role,
   });
@@ -24,8 +26,9 @@ class UserModel {
       email: json['email'] ?? '',
       phone: json['phone'],
       avatar: json['avatar'],
+      imageUrl: json['image_url'],
       company: json['company'],
-      role: json['role'] ?? 'customer',
+      role: json['role'] ?? json['user_type'] ?? 'customer',
     );
   }
 
@@ -36,6 +39,7 @@ class UserModel {
       'email': email,
       'phone': phone,
       'avatar': avatar,
+      'image_url': imageUrl,
       'company': company,
       'role': role,
     };
@@ -47,6 +51,7 @@ class UserModel {
     String? email,
     String? phone,
     String? avatar,
+    String? imageUrl,
     String? company,
     String? role,
   }) {
@@ -56,6 +61,7 @@ class UserModel {
       email: email ?? this.email,
       phone: phone ?? this.phone,
       avatar: avatar ?? this.avatar,
+      imageUrl: imageUrl ?? this.imageUrl,
       company: company ?? this.company,
       role: role ?? this.role,
     );

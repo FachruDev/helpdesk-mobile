@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:helpdesk_mobile/config/app_colors.dart';
 import 'package:helpdesk_mobile/states/customer/customer_auth_provider.dart';
 
@@ -42,11 +43,16 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
                   CircleAvatar(
                     radius: 60,
                     backgroundColor: AppColors.primary,
-                    child: const Icon(
-                      Icons.person,
-                      size: 60,
-                      color: AppColors.white,
-                    ),
+                    backgroundImage: user.imageUrl != null
+                        ? CachedNetworkImageProvider(user.imageUrl!)
+                        : null,
+                    child: user.imageUrl == null
+                        ? const Icon(
+                            Icons.person,
+                            size: 60,
+                            color: AppColors.white,
+                          )
+                        : null,
                   ),
                   const SizedBox(height: 24),
 

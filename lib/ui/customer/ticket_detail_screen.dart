@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:helpdesk_mobile/config/app_colors.dart';
 import 'package:helpdesk_mobile/data/models/ticket_model.dart';
 import 'package:helpdesk_mobile/states/customer/customer_ticket_provider.dart';
@@ -520,11 +521,16 @@ class _CustomerTicketDetailScreenState
                 CircleAvatar(
                   radius: 16,
                   backgroundColor: isCustomer ? AppColors.primary : AppColors.success,
-                  child: Icon(
-                    isCustomer ? Icons.person : Icons.support_agent,
-                    size: 18,
-                    color: AppColors.white,
-                  ),
+                  backgroundImage: reply.userImageUrl != null
+                      ? CachedNetworkImageProvider(reply.userImageUrl!)
+                      : null,
+                  child: reply.userImageUrl == null
+                      ? Icon(
+                          isCustomer ? Icons.person : Icons.support_agent,
+                          size: 18,
+                          color: AppColors.white,
+                        )
+                      : null,
                 ),
                 const SizedBox(width: 8),
                 Expanded(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:helpdesk_mobile/config/app_colors.dart';
 import 'package:helpdesk_mobile/states/customer/customer_auth_provider.dart';
 import 'package:helpdesk_mobile/states/customer/customer_ticket_provider.dart';
@@ -122,7 +123,7 @@ class _CustomerDashboardScreenState extends ConsumerState<CustomerDashboardScree
           ),
         ],
       ),
-      drawer: _buildDrawer(authState.user?.name ?? 'User'),
+      drawer: _buildDrawer(authState.user),
       body: RefreshIndicator(
         onRefresh: _refreshTickets,
         child: ticketState.isLoading
@@ -214,7 +215,10 @@ class _CustomerDashboardScreenState extends ConsumerState<CustomerDashboardScree
     );
   }
 
-  Widget _buildDrawer(String userName) {
+  Widget _buildDrawer(dynamic user) {
+    final userName = user?.name ?? 'User';
+    final userImage = user?.imageUrl;
+    
     return Drawer(
       child: Container(
         color: AppColors.primary,
@@ -232,11 +236,16 @@ class _CustomerDashboardScreenState extends ConsumerState<CustomerDashboardScree
                   CircleAvatar(
                     radius: 30,
                     backgroundColor: AppColors.white,
-                    child: Icon(
-                      Icons.person,
-                      size: 35,
-                      color: AppColors.primary,
-                    ),
+                    backgroundImage: userImage != null
+                        ? CachedNetworkImageProvider(userImage)
+                        : null,
+                    child: userImage == null
+                        ? Icon(
+                            Icons.person,
+                            size: 35,
+                            color: AppColors.primary,
+                          )
+                        : null,
                   ),
                   const SizedBox(height: 12),
                   Text(
