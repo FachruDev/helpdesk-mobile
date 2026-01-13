@@ -2,30 +2,30 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:helpdesk_mobile/config/app_colors.dart';
-import 'package:helpdesk_mobile/states/customer/customer_auth_provider.dart';
+import 'package:helpdesk_mobile/states/internal/internal_auth_provider.dart';
 
-class CustomerProfileScreen extends ConsumerStatefulWidget {
-  const CustomerProfileScreen({super.key});
+class InternalProfileScreen extends ConsumerStatefulWidget {
+  const InternalProfileScreen({super.key});
 
   @override
-  ConsumerState<CustomerProfileScreen> createState() => _CustomerProfileScreenState();
+  ConsumerState<InternalProfileScreen> createState() => _InternalProfileScreenState();
 }
 
-class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
+class _InternalProfileScreenState extends ConsumerState<InternalProfileScreen> {
   @override
   void initState() {
     super.initState();
     // Fetch user profile when screen opens
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (ref.read(customerAuthProvider).user == null) {
-        ref.read(customerAuthProvider.notifier).fetchProfile();
+      if (ref.read(internalAuthProvider).user == null) {
+        ref.read(internalAuthProvider.notifier).fetchProfile();
       }
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    final authState = ref.watch(customerAuthProvider);
+    final authState = ref.watch(internalAuthProvider);
     final user = authState.user;
 
     return Scaffold(
@@ -48,7 +48,7 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
                         : null,
                     child: user.imageUrl == null
                         ? const Icon(
-                            Icons.person,
+                            Icons.admin_panel_settings,
                             size: 60,
                             color: AppColors.white,
                           )

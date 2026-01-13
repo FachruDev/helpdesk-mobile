@@ -1,18 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helpdesk_mobile/config/app_colors.dart';
-import 'package:helpdesk_mobile/states/customer/customer_auth_provider.dart';
-import 'package:helpdesk_mobile/ui/customer/dashboard_screen.dart';
-import 'package:helpdesk_mobile/ui/internal/login_screen.dart';
+import 'package:helpdesk_mobile/states/internal/internal_auth_provider.dart';
+import 'package:helpdesk_mobile/ui/internal/dashboard_screen.dart';
 
-class CustomerLoginScreen extends ConsumerStatefulWidget {
-  const CustomerLoginScreen({super.key});
+class InternalLoginScreen extends ConsumerStatefulWidget {
+  const InternalLoginScreen({super.key});
 
   @override
-  ConsumerState<CustomerLoginScreen> createState() => _CustomerLoginScreenState();
+  ConsumerState<InternalLoginScreen> createState() => _InternalLoginScreenState();
 }
 
-class _CustomerLoginScreenState extends ConsumerState<CustomerLoginScreen> {
+class _InternalLoginScreenState extends ConsumerState<InternalLoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -28,7 +27,7 @@ class _CustomerLoginScreenState extends ConsumerState<CustomerLoginScreen> {
   Future<void> _handleLogin() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final success = await ref.read(customerAuthProvider.notifier).login(
+    final success = await ref.read(internalAuthProvider.notifier).login(
           email: _emailController.text.trim(),
           password: _passwordController.text,
         );
@@ -36,10 +35,10 @@ class _CustomerLoginScreenState extends ConsumerState<CustomerLoginScreen> {
     if (mounted) {
       if (success) {
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const CustomerDashboardScreen()),
+          MaterialPageRoute(builder: (_) => const InternalDashboardScreen()),
         );
       } else {
-        final errorMessage = ref.read(customerAuthProvider).errorMessage;
+        final errorMessage = ref.read(internalAuthProvider).errorMessage;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(errorMessage ?? 'Login failed'),
@@ -52,10 +51,18 @@ class _CustomerLoginScreenState extends ConsumerState<CustomerLoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final authState = ref.watch(customerAuthProvider);
+    final authState = ref.watch(internalAuthProvider);
 
     return Scaffold(
       backgroundColor: AppColors.background,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: AppColors.primary),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -68,7 +75,7 @@ class _CustomerLoginScreenState extends ConsumerState<CustomerLoginScreen> {
                 children: [
                   // Logo or Title
                   Icon(
-                    Icons.support_agent_rounded,
+                    Icons.admin_panel_settings_rounded,
                     size: 80,
                     color: AppColors.primary,
                   ),
@@ -84,7 +91,7 @@ class _CustomerLoginScreenState extends ConsumerState<CustomerLoginScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Customer Login',
+                    'Internal Login',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 16,
@@ -170,24 +177,16 @@ class _CustomerLoginScreenState extends ConsumerState<CustomerLoginScreen> {
                             ),
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 16),
 
-                  // Switch to Internal Login
-                  TextButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const InternalLoginScreen(),
-                        ),
-                      );
-                    },
-                    child: Text(
-                      'Login as Internal/Agent',
-                      style: TextStyle(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.w600,
-                      ),
+                  // Info text
+                  Text(
+                    'For internal/employee use only',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                      fontStyle: FontStyle.italic,
                     ),
                   ),
                 ],

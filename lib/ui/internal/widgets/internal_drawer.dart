@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:helpdesk_mobile/config/app_colors.dart';
 
-class CustomerDrawer extends StatelessWidget {
+class InternalDrawer extends StatelessWidget {
   final dynamic user;
   final VoidCallback onDashboardTap;
   final VoidCallback onCreateTicketTap;
   final VoidCallback onProfileTap;
   final VoidCallback onLogoutTap;
 
-  const CustomerDrawer({
+  const InternalDrawer({
     super.key,
     required this.user,
     required this.onDashboardTap,
@@ -22,7 +22,7 @@ class CustomerDrawer extends StatelessWidget {
   Widget build(BuildContext context) {
     final userName = user?.name ?? 'User';
     final userImage = user?.imageUrl;
-    final userRole = user?.displayRole ?? user?.role ?? 'Customer';
+    final userRole = user?.displayRole ?? user?.role ?? 'Internal';
     
     // Capitalize first letter of role
     final displayRole = userRole.substring(0, 1).toUpperCase() + userRole.substring(1);
@@ -85,7 +85,7 @@ class CustomerDrawer extends StatelessWidget {
                             : null,
                         child: userImage == null
                             ? const Icon(
-                                Icons.person,
+                                Icons.admin_panel_settings,
                                 size: 40,
                                 color: AppColors.primary,
                               )
@@ -177,7 +177,7 @@ class CustomerDrawer extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.all(16),
                 child: Text(
-                  'Helpdesk v1.0.0',
+                  'Helpdesk v1.0.0 - Internal',
                   style: TextStyle(
                     color: AppColors.textHint.withOpacity(0.5),
                     fontSize: 11,
