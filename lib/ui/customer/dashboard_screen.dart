@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:helpdesk_mobile/config/app_colors.dart';
 import 'package:helpdesk_mobile/states/customer/customer_auth_provider.dart';
 import 'package:helpdesk_mobile/states/customer/customer_ticket_provider.dart';
@@ -8,6 +7,8 @@ import 'package:helpdesk_mobile/ui/customer/create_ticket_screen.dart';
 import 'package:helpdesk_mobile/ui/customer/filter_screen.dart';
 import 'package:helpdesk_mobile/ui/customer/profile_screen.dart';
 import 'package:helpdesk_mobile/ui/customer/ticket_detail_screen.dart';
+import 'package:helpdesk_mobile/ui/customer/widgets/customer_drawer.dart';
+import 'package:helpdesk_mobile/ui/customer/widgets/ticket_statistics_widget.dart';
 import 'package:helpdesk_mobile/ui/shared/widgets/ticket_card.dart';
 import 'package:helpdesk_mobile/ui/customer/login_screen.dart';
 
@@ -39,6 +40,20 @@ class _CustomerDashboardScreenState extends ConsumerState<CustomerDashboardScree
           startDate: _startDate,
           endDate: _endDate,
           search: _searchQuery,
+          refresh: true,
+        );
+  }
+
+  void _filterByStatus(String? status) {
+    setState(() {
+      _selectedStatus = status;
+      _startDate = null;
+      _endDate = null;
+      _searchQuery = null;
+    });
+
+    ref.read(customerTicketProvider.notifier).fetchTickets(
+          status: status,
           refresh: true,
         );
   }
@@ -112,6 +127,13 @@ class _CustomerDashboardScreenState extends ConsumerState<CustomerDashboardScree
     final ticketState = ref.watch(customerTicketProvider);
     final authState = ref.watch(customerAuthProvider);
 
+    // Calculate statistics from tickets (all tickets, not filtered)
+    final allTickets = ticketState.tickets;
+    final totalTickets = allTickets.length;
+    final inProgressTickets = allTickets.where((t) => t.status.value.toLowerCase() == 'inprogress').length;
+    final closedTickets = allTickets.where((t) => t.status.value.toLowerCase() == 'closed').length;
+    final cancelledTickets = allTickets.where((t) => t.status.value.toLowerCase() == 'cancelled').length;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Dashboard'),
@@ -123,45 +145,121 @@ class _CustomerDashboardScreenState extends ConsumerState<CustomerDashboardScree
           ),
         ],
       ),
-      drawer: _buildDrawer(authState.user),
+      drawer: CustomerDrawer(
+        user: authState.user,
+        onDashboardTap: () => Navigator.pop(context),
+        onCreateTicketTap: () {
+          Navigator.pop(context);
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const CustomerCreateTicketScreen(),
+            ),
+          );
+        },
+        onProfileTap: () {
+          Navigator.pop(context);
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const CustomerProfileScreen(),
+            ),
+          );
+        },
+        onLogoutTap: () {
+          Navigator.pop(context);
+          _handleLogout();
+        },
+      ),
       body: RefreshIndicator(
         onRefresh: _refreshTickets,
         child: ticketState.isLoading
             ? const Center(child: CircularProgressIndicator())
-            : ticketState.tickets.isEmpty
-                ? _buildEmptyState()
-                : ListView.builder(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    itemCount: ticketState.tickets.length + 
-                        (ticketState.isLoadingMore ? 1 : 0),
-                    itemBuilder: (context, index) {
-                      if (index == ticketState.tickets.length) {
-                        return const Center(
-                          child: Padding(
-                            padding: EdgeInsets.all(16),
-                            child: CircularProgressIndicator(),
-                          ),
-                        );
-                      }
-
-                      final ticket = ticketState.tickets[index];
-                      return TicketCard(
-                        ticket: ticket,
-                        onTap: () async {
-                          await Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => CustomerTicketDetailScreen(
-                                ticketId: ticket.ticketId,
+            : CustomScrollView(
+                slivers: [
+                  // Statistics Section
+                  SliverToBoxAdapter(
+                    child: TicketStatisticsWidget(
+                      totalTickets: totalTickets,
+                      inProgressTickets: inProgressTickets,
+                      closedTickets: closedTickets,
+                      cancelledTickets: cancelledTickets,
+                      onStatusTap: _filterByStatus,
+                    ),
+                  ),
+                  
+                  // Active Filter Indicator
+                  if (_selectedStatus != null)
+                    SliverToBoxAdapter(
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.filter_alt, size: 16, color: AppColors.primary),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Filtered by: $_selectedStatus',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
-                          );
-                          // Refresh tickets when returning from detail
-                          _refreshTickets();
-                        },
-                      );
-                    },
-                  ),
+                            const Spacer(),
+                            InkWell(
+                              onTap: () => _filterByStatus(null),
+                              child: Icon(Icons.close, size: 18, color: AppColors.primary),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  
+                  // Tickets List
+                  ticketState.tickets.isEmpty
+                      ? SliverFillRemaining(
+                          child: _buildEmptyState(),
+                        )
+                      : SliverList(
+                          delegate: SliverChildBuilderDelegate(
+                            (context, index) {
+                              if (index == ticketState.tickets.length) {
+                                return const Center(
+                                  child: Padding(
+                                    padding: EdgeInsets.all(16),
+                                    child: CircularProgressIndicator(),
+                                  ),
+                                );
+                              }
+
+                              final ticket = ticketState.tickets[index];
+                              return TicketCard(
+                                ticket: ticket,
+                                onTap: () async {
+                                  await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => CustomerTicketDetailScreen(
+                                        ticketId: ticket.ticketId,
+                                      ),
+                                    ),
+                                  );
+                                  // Refresh tickets when returning from detail
+                                  _refreshTickets();
+                                },
+                              );
+                            },
+                            childCount: ticketState.tickets.length + 
+                                (ticketState.isLoadingMore ? 1 : 0),
+                          ),
+                        ),
+                ],
+              ),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () async {
@@ -204,7 +302,9 @@ class _CustomerDashboardScreenState extends ConsumerState<CustomerDashboardScree
           ),
           const SizedBox(height: 8),
           Text(
-            'Create a new ticket to get started',
+            _selectedStatus != null
+                ? 'No tickets with status: $_selectedStatus'
+                : 'Create a new ticket to get started',
             style: TextStyle(
               fontSize: 14,
               color: AppColors.textHint,
@@ -214,121 +314,5 @@ class _CustomerDashboardScreenState extends ConsumerState<CustomerDashboardScree
       ),
     );
   }
-
-  Widget _buildDrawer(dynamic user) {
-    final userName = user?.name ?? 'User';
-    final userImage = user?.imageUrl;
-    
-    return Drawer(
-      child: Container(
-        color: AppColors.primary,
-        child: ListView(
-          padding: EdgeInsets.zero,
-          children: [
-            DrawerHeader(
-              decoration: BoxDecoration(
-                color: AppColors.primary,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  CircleAvatar(
-                    radius: 30,
-                    backgroundColor: AppColors.white,
-                    backgroundImage: userImage != null
-                        ? CachedNetworkImageProvider(userImage)
-                        : null,
-                    child: userImage == null
-                        ? Icon(
-                            Icons.person,
-                            size: 35,
-                            color: AppColors.primary,
-                          )
-                        : null,
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    userName,
-                    style: const TextStyle(
-                      color: AppColors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'Customer',
-                    style: TextStyle(
-                      color: AppColors.white,
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            _buildDrawerItem(
-              icon: Icons.dashboard,
-              title: 'Dashboard',
-              onTap: () => Navigator.pop(context),
-            ),
-            _buildDrawerItem(
-              icon: Icons.add_box,
-              title: 'Create Ticket',
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const CustomerCreateTicketScreen(),
-                  ),
-                );
-              },
-            ),
-            _buildDrawerItem(
-              icon: Icons.person,
-              title: 'Profile',
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const CustomerProfileScreen(),
-                  ),
-                );
-              },
-            ),
-            const Divider(color: AppColors.white, height: 1),
-            _buildDrawerItem(
-              icon: Icons.logout,
-              title: 'Logout',
-              onTap: () {
-                Navigator.pop(context);
-                _handleLogout();
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDrawerItem({
-    required IconData icon,
-    required String title,
-    required VoidCallback onTap,  
-  }) {
-    return ListTile(
-      leading: Icon(icon, color: AppColors.white),
-      title: Text(
-        title,
-        style: const TextStyle(
-          color: AppColors.white,
-          fontSize: 16,
-        ),
-      ),
-      onTap: onTap,
-      hoverColor: Colors.white.withOpacity(0.1),
-    );
-  }
 }
+

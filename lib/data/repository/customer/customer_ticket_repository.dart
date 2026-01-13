@@ -35,7 +35,7 @@ class CustomerTicketRepository {
         print('Response data: ${jsonEncode(responseData)}');
         print('Categories count: ${(categoriesData as List).length}');
         
-        final categories = (categoriesData as List)
+        final categories = categoriesData
             .map((e) {
               print('\\nCategory raw data: ${jsonEncode(e)}');
               final cat = CategoryModel.fromJson(e);
@@ -114,7 +114,7 @@ class CustomerTicketRepository {
 
       if (response.statusCode == 200) {
         final employeesData = responseData['data'] ?? responseData['employees'] ?? [];
-        final employees = (employeesData as List)
+        final employees = employeesData
             .map((e) => EmployeeModel.fromJson(e))
             .toList();
         
@@ -171,12 +171,12 @@ class CustomerTicketRepository {
         print('\n===== TICKETS API RESPONSE =====');
         print('Success: ${responseData['success']}');
         print('Tickets count: ${(ticketsData as List).length}');
-        if ((ticketsData as List).isNotEmpty) {
+        if ((ticketsData).isNotEmpty) {
           print('First ticket: ${jsonEncode(ticketsData[0])}');
         }
         print('================================\n');
         
-        final tickets = (ticketsData as List)
+        final tickets = ticketsData
             .map((e) => TicketModel.fromJson(e))
             .toList();
         
@@ -421,7 +421,7 @@ class CustomerTicketRepository {
         print('Replies count: ${(repliesData as List).length}');
         print('========================================\n');
         
-        final replies = (repliesData as List)
+        final replies = repliesData
             .map((e) => TicketReplyModel.fromJson(e))
             .toList();
         
