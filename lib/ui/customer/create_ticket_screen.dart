@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:html_editor_enhanced/html_editor.dart';
 import 'package:helpdesk_mobile/config/app_colors.dart';
 import 'package:helpdesk_mobile/data/models/category_model.dart';
 import 'package:helpdesk_mobile/data/models/employee_model.dart';
@@ -9,6 +10,7 @@ import 'package:helpdesk_mobile/data/repository/customer/customer_ticket_reposit
 import 'package:helpdesk_mobile/states/customer/customer_category_provider.dart';
 import 'package:helpdesk_mobile/states/customer/customer_employee_provider.dart';
 import 'package:helpdesk_mobile/states/customer/customer_ticket_provider.dart';
+import 'package:helpdesk_mobile/ui/shared/widgets/html_editor_field.dart';
 import 'package:helpdesk_mobile/ui/shared/widgets/searchable_dropdown.dart';
 
 // Helper class for Request To dropdown
@@ -63,7 +65,8 @@ class _CustomerCreateTicketScreenState
     extends ConsumerState<CustomerCreateTicketScreen> {
   final _formKey = GlobalKey<FormState>();
   final _subjectController = TextEditingController();
-  final _messageController = TextEditingController();
+  final _messageController = HtmlEditorController();
+  final _messageFieldKey = GlobalKey<HtmlEditorFieldState>();
   final _requestToOtherController = TextEditingController();
 
   CategoryModel? _selectedCategory;
@@ -72,7 +75,7 @@ class _CustomerCreateTicketScreenState
   EmployeeModel? _selectedEmployee;
   String? _selectedEnvatoSupport;
   bool _isRequestToOther = false;
-  List<File> _selectedFiles = [];
+  final List<File> _selectedFiles = [];
   bool _isSubmitting = false;
   
   // Category extras state
@@ -97,7 +100,6 @@ class _CustomerCreateTicketScreenState
   @override
   void dispose() {
     _subjectController.dispose();
-    _messageController.dispose();
     _requestToOtherController.dispose();
     super.dispose();
   }
@@ -179,6 +181,10 @@ class _CustomerCreateTicketScreenState
   Future<void> _submitTicket() async {
     if (!_formKey.currentState!.validate()) return;
 
+    // Validate HTML editor
+    final messageValid = await _messageFieldKey.currentState?.validate() ?? false;
+    if (!messageValid) return;
+
     if (_selectedCategory == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -201,10 +207,11 @@ class _CustomerCreateTicketScreenState
 
     setState(() => _isSubmitting = true);
 
+    final messageHtml = await _messageController.getText();
     final success = await ref.read(customerTicketProvider.notifier).createTicket(
           subject: _subjectController.text.trim(),
           categoryId: _selectedCategory!.id,
-          message: _messageController.text.trim(),
+          message: messageHtml,
           requestToUserId: _isRequestToOther
               ? 'other'
               : (_selectedEmployee?.id.toString() ?? 'other'),
@@ -371,17 +378,14 @@ class _CustomerCreateTicketScreenState
                       const SizedBox(height: 16),
 
                     // Message
-                    TextFormField(
+                    HtmlEditorField(
+                      key: _messageFieldKey,
                       controller: _messageController,
-                      decoration: const InputDecoration(
-                        labelText: 'Message *',
-                        hintText: 'Describe your issue',
-                        prefixIcon: Icon(Icons.message),
-                        alignLabelWithHint: true,
-                      ),
-                      maxLines: 5,
+                      labelText: 'Message *',
+                      hintText: 'Describe your issue',
+                      height: 300,
                       validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
+                        if (value == null || value.trim().isEmpty || value == '<p></p>' || value == '<p><br></p>') {
                           return 'Message is required';
                         }
                         return null;
@@ -443,7 +447,7 @@ class _CustomerCreateTicketScreenState
                     // Envato Support (conditional based on category)
                     if (_envatoRequired)
                       DropdownButtonFormField<String>(
-                        value: _selectedEnvatoSupport,
+                        initialValue: _selectedEnvatoSupport,
                         decoration: const InputDecoration(
                           labelText: 'Envato Support *',
                           prefixIcon: Icon(Icons.support),

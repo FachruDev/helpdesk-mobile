@@ -189,6 +189,17 @@ class _InternalLoginScreenState extends ConsumerState<InternalLoginScreen> {
                       fontStyle: FontStyle.italic,
                     ),
                   ),
+                  const SizedBox(height: 24),
+
+                  // Back to Customer Login Button
+                  TextButton.icon(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.arrow_back, size: 18),
+                    label: const Text('Back to Customer Login'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.primary,
+                    ),
+                  ),
                 ],
               ),
             ),

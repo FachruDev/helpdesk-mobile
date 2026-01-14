@@ -139,10 +139,12 @@ class InternalTicketRepository {
       };
 
       if (status != null && status.isNotEmpty) queryParams['status'] = status;
-      if (startDate != null && startDate.isNotEmpty)
+      if (startDate != null && startDate.isNotEmpty) {
         queryParams['start_date'] = startDate;
-      if (endDate != null && endDate.isNotEmpty)
+      }
+      if (endDate != null && endDate.isNotEmpty) {
         queryParams['end_date'] = endDate;
+      }
       if (search != null && search.isNotEmpty) queryParams['search'] = search;
 
       final url = Uri.parse(
@@ -221,6 +223,7 @@ class InternalTicketRepository {
     String? requestToOther,
     String? project,
     int? subCategory,
+    String? envatoSupport,
     List<File>? files,
   }) async {
     try {
@@ -243,6 +246,7 @@ class InternalTicketRepository {
         if (requestToOther != null) body['request_to_other'] = requestToOther;
         if (project != null) body['project'] = project;
         if (subCategory != null) body['subscategory'] = subCategory;
+        if (envatoSupport != null) body['envato_support'] = envatoSupport;
 
         final response = await http.post(
           url,
@@ -280,11 +284,16 @@ class InternalTicketRepository {
         request.fields['message'] = message;
         request.fields['request_to_user_id'] = requestToUserId;
 
-        if (requestToOther != null)
+        if (requestToOther != null) {
           request.fields['request_to_other'] = requestToOther;
+        }
         if (project != null) request.fields['project'] = project;
-        if (subCategory != null)
+        if (subCategory != null) {
           request.fields['subscategory'] = subCategory.toString();
+        }
+        if (envatoSupport != null) {
+          request.fields['envato_support'] = envatoSupport;
+        }
 
         // Add files
         for (var file in files) {

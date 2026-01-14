@@ -4,7 +4,9 @@ import 'package:helpdesk_mobile/data/models/ticket_model.dart';
 import 'package:helpdesk_mobile/data/repository/internal/internal_ticket_repository.dart';
 
 // Repository Provider
-final internalTicketRepositoryProvider = Provider<InternalTicketRepository>((ref) {
+final internalTicketRepositoryProvider = Provider<InternalTicketRepository>((
+  ref,
+) {
   return InternalTicketRepository();
 });
 
@@ -47,7 +49,8 @@ class InternalTicketState {
 
 // Ticket Notifier
 class InternalTicketNotifier extends Notifier<InternalTicketState> {
-  InternalTicketRepository get _repository => ref.read(internalTicketRepositoryProvider);
+  InternalTicketRepository get _repository =>
+      ref.read(internalTicketRepositoryProvider);
 
   @override
   InternalTicketState build() {
@@ -93,10 +96,7 @@ class InternalTicketNotifier extends Notifier<InternalTicketState> {
         );
       }
     } catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        errorMessage: e.toString(),
-      );
+      state = state.copyWith(isLoading: false, errorMessage: e.toString());
     }
   }
 
@@ -148,6 +148,7 @@ class InternalTicketNotifier extends Notifier<InternalTicketState> {
     String? requestToOther,
     String? project,
     int? subCategory,
+    String? envatoSupport,
     List<File>? files,
   }) async {
     try {
@@ -160,6 +161,7 @@ class InternalTicketNotifier extends Notifier<InternalTicketState> {
         requestToOther: requestToOther,
         project: project,
         subCategory: subCategory,
+        envatoSupport: envatoSupport,
         files: files,
       );
 
@@ -176,20 +178,22 @@ class InternalTicketNotifier extends Notifier<InternalTicketState> {
 }
 
 // Provider
-final internalTicketProvider = NotifierProvider<InternalTicketNotifier, InternalTicketState>(() {
-  return InternalTicketNotifier();
-});
+final internalTicketProvider =
+    NotifierProvider<InternalTicketNotifier, InternalTicketState>(() {
+      return InternalTicketNotifier();
+    });
 
 // Ticket Detail Provider (separate for each ticket)
-final internalTicketDetailProvider = FutureProvider.family<TicketModel?, String>((ref, ticketId) async {
-  final repository = ref.watch(internalTicketRepositoryProvider);
-  final response = await repository.getTicketDetail(ticketId);
-  
-  if (response.success && response.data != null) {
-    return response.data;
-  }
-  return null;
-});
+final internalTicketDetailProvider =
+    FutureProvider.family<TicketModel?, String>((ref, ticketId) async {
+      final repository = ref.watch(internalTicketRepositoryProvider);
+      final response = await repository.getTicketDetail(ticketId);
+
+      if (response.success && response.data != null) {
+        return response.data;
+      }
+      return null;
+    });
 
 // Reply Ticket Provider
 final internalReplyTicketProvider = Provider<InternalTicketRepository>((ref) {

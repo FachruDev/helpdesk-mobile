@@ -10,6 +10,7 @@ import 'package:helpdesk_mobile/ui/internal/login_screen.dart';
 import 'package:helpdesk_mobile/ui/internal/profile_screen.dart';
 import 'package:helpdesk_mobile/ui/internal/filter_screen.dart';
 import 'package:helpdesk_mobile/ui/internal/ticket_detail_screen.dart';
+import 'package:helpdesk_mobile/ui/internal/create_ticket/create_ticket_screen.dart';
 
 class InternalDashboardScreen extends ConsumerStatefulWidget {
   const InternalDashboardScreen({super.key});
@@ -287,13 +288,18 @@ class _InternalDashboardScreenState
               ),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Create ticket feature coming soon'),
-              backgroundColor: AppColors.info,
+        onPressed: () async {
+          final result = await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const InternalCreateTicketScreen(),
             ),
           );
+
+          // Refresh tickets if a new ticket was created
+          if (result == true) {
+            ref.read(internalTicketProvider.notifier).fetchTickets();
+          }
         },
         icon: const Icon(Icons.add),
         label: const Text('New Ticket'),

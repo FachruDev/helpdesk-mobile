@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter_html/flutter_html.dart';
 import 'package:helpdesk_mobile/config/app_colors.dart';
 import 'package:helpdesk_mobile/data/models/ticket_model.dart';
 import 'package:helpdesk_mobile/states/customer/customer_ticket_provider.dart';
@@ -315,13 +316,21 @@ class _CustomerTicketDetailScreenState
             const SizedBox(height: 12),
 
             // Message
-            Text(
-              ticket.message ?? '',
-              style: TextStyle(
-                fontSize: 15,
-                color: AppColors.textSecondary,
-                height: 1.5,
-              ),
+            Html(
+              data: ticket.message ?? '',
+              style: {
+                "body": Style(
+                  margin: Margins.zero,
+                  padding: HtmlPaddings.zero,
+                  fontSize: FontSize(15),
+                  color: AppColors.textSecondary,
+                  lineHeight: const LineHeight(1.5),
+                ),
+                "p": Style(
+                  margin: Margins.zero,
+                  padding: HtmlPaddings.zero,
+                ),
+              },
             ),
             const SizedBox(height: 16),
             const Divider(),
@@ -596,13 +605,21 @@ class _CustomerTicketDetailScreenState
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  reply.comment,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: AppColors.textSecondary,
-                    height: 1.5,
-                  ),
+                Html(
+                  data: reply.comment,
+                  style: {
+                    "body": Style(
+                      margin: Margins.zero,
+                      padding: HtmlPaddings.zero,
+                      fontSize: FontSize(14),
+                      color: AppColors.textSecondary,
+                      lineHeight: const LineHeight(1.5),
+                    ),
+                    "p": Style(
+                      margin: Margins.zero,
+                      padding: HtmlPaddings.zero,
+                    ),
+                  },
                 ),
                 // Edited indicator (compact, below message)
                 if (reply.isEdited) ...[
@@ -737,7 +754,7 @@ class _CustomerTicketDetailScreenState
           // Status dropdown (only for new replies, not edit)
           if (!_isEditMode) ...[
             DropdownButtonFormField<String>(
-              value: _selectedStatus,
+              initialValue: _selectedStatus,
               decoration: InputDecoration(
                 labelText: 'Update Status (Optional)',
                 prefixIcon: const Icon(Icons.flag_outlined, size: 20),

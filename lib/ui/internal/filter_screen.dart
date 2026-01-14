@@ -145,7 +145,7 @@ class _InternalFilterScreenState extends State<InternalFilterScreen> {
 
             // Status Dropdown
             DropdownButtonFormField<String>(
-              value: _selectedStatus,
+              initialValue: _selectedStatus,
               decoration: const InputDecoration(
                 labelText: 'Status',
                 prefixIcon: Icon(Icons.filter_list),
