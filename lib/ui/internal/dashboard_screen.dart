@@ -157,14 +157,18 @@ class _InternalDashboardScreenState
       drawer: InternalDrawer(
         user: authState.user,
         onDashboardTap: () => Navigator.pop(context),
-        onCreateTicketTap: () {
+        onCreateTicketTap: () async {
           Navigator.pop(context);
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Create ticket feature coming soon'),
-              backgroundColor: AppColors.info,
+          // Navigate to create ticket and refresh on return
+          final result = await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const InternalCreateTicketScreen(),
             ),
           );
+          if (result == true && mounted) {
+            _refreshTickets();
+          }
         },
         onProfileTap: () {
           Navigator.pop(context);

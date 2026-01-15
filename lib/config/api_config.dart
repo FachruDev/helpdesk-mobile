@@ -4,7 +4,7 @@ class ApiConfig {
   // Base URL from .env
   static String get baseUrl => const String.fromEnvironment(
         'API_URL',
-        defaultValue: 'http://143.198.212.197:8001',
+        defaultValue: 'http://127.0.0.1:8000',
       );
 
   // Customer Endpoints
