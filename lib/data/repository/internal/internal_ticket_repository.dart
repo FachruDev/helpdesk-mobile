@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:helpdesk_mobile/config/api_config.dart';
 import 'package:helpdesk_mobile/data/models/api_response.dart';
+import 'package:helpdesk_mobile/data/models/available_status_model.dart';
 import 'package:helpdesk_mobile/data/models/ticket_model.dart';
 import 'package:helpdesk_mobile/data/models/category_model.dart';
 import 'package:helpdesk_mobile/data/models/employee_model.dart';
@@ -206,6 +207,41 @@ class InternalTicketRepository {
 
       return ApiResponse.error(
         responseData['message'] ?? 'Failed to fetch ticket detail',
+        statusCode: response.statusCode,
+      );
+    } catch (e) {
+      return ApiResponse.error('Network error: ${e.toString()}');
+    }
+  }
+
+  /// Get available statuses for ticket (dynamic based on current status & permissions)
+  Future<ApiResponse<AvailableStatusModel>> getAvailableStatuses(
+      String ticketId) async {
+    try {
+      final token = await _getToken();
+      if (token == null) return ApiResponse.error('No token found');
+
+      final url = Uri.parse(
+        '${ApiConfig.baseUrl}/api/mobile/internal/tickets/$ticketId/available-statuses',
+      );
+
+      final response = await http.get(
+        url,
+        headers: ApiConfig.headers(token: token),
+      );
+
+      final Map<String, dynamic> responseData = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        final data = responseData['data'];
+        if (data != null) {
+          final availableStatus = AvailableStatusModel.fromJson(data);
+          return ApiResponse.success(availableStatus);
+        }
+      }
+
+      return ApiResponse.error(
+        responseData['message'] ?? 'Failed to fetch available statuses',
         statusCode: response.statusCode,
       );
     } catch (e) {

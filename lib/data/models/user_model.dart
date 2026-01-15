@@ -9,6 +9,7 @@ class UserModel {
   final String? company;
   final String role;
   final List<String>? roles;
+  final bool? canHoldTicket; // For internal users
 
   UserModel({
     required this.id,
@@ -21,6 +22,7 @@ class UserModel {
     this.company,
     required this.role,
     this.roles,
+    this.canHoldTicket,
   });
 
   // Get display role (first role from roles array or role field)
@@ -53,6 +55,7 @@ class UserModel {
       company: json['company'],
       role: json['role'] ?? json['user_type'] ?? rolesList?.first ?? 'customer',
       roles: rolesList,
+      canHoldTicket: json['can_hold_ticket'],
     );
   }
 
@@ -68,6 +71,7 @@ class UserModel {
       'company': company,
       'role': role,
       'roles': roles,
+      'can_hold_ticket': canHoldTicket,
     };
   }
 
@@ -82,6 +86,7 @@ class UserModel {
     String? company,
     String? role,
     List<String>? roles,
+    bool? canHoldTicket,
   }) {
     return UserModel(
       id: id ?? this.id,
@@ -94,6 +99,7 @@ class UserModel {
       company: company ?? this.company,
       role: role ?? this.role,
       roles: roles ?? this.roles,
+      canHoldTicket: canHoldTicket ?? this.canHoldTicket,
     );
   }
 }

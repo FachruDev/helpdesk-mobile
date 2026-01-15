@@ -5,6 +5,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_html/flutter_html.dart';
 import 'package:helpdesk_mobile/config/app_colors.dart';
+import 'package:helpdesk_mobile/data/models/available_status_model.dart';
 import 'package:helpdesk_mobile/data/models/ticket_model.dart';
 import 'package:helpdesk_mobile/data/repository/internal/internal_ticket_repository.dart';
 import 'package:helpdesk_mobile/states/internal/internal_ticket_replies_provider.dart';
@@ -28,6 +29,19 @@ final internalTicketDetailProvider =
 final internalReplyTicketProvider = Provider(
   (ref) => InternalTicketRepository(),
 );
+
+// Provider for available statuses
+final internalAvailableStatusesProvider =
+    FutureProvider.family<AvailableStatusModel?, String>((ref, ticketId) async {
+      final repository = InternalTicketRepository();
+      final response = await repository.getAvailableStatuses(ticketId);
+
+      if (response.success && response.data != null) {
+        return response.data;
+      }
+
+      return null;
+    });
 
 class InternalTicketDetailScreen extends ConsumerStatefulWidget {
   final String ticketId;
@@ -124,6 +138,7 @@ class _InternalTicketDetailScreenState
         // Refresh ticket detail and replies to show new reply
         ref.invalidate(internalTicketDetailProvider(widget.ticketId));
         ref.invalidate(internalTicketRepliesProvider(widget.ticketId));
+        ref.invalidate(internalAvailableStatusesProvider(widget.ticketId));
 
         // Scroll to bottom to show new reply
         Future.delayed(const Duration(milliseconds: 500), () {
@@ -215,7 +230,9 @@ class _InternalTicketDetailScreenState
     TicketModel ticket,
     AsyncValue<List<TicketReplyModel>> repliesAsync,
   ) {
-    final isTicketClosed = ticket.status.value.toLowerCase() == 'closed';
+    // Check if status is terminal (cannot reply)
+    final isTerminalStatus = ['closed', 'cancelled', 'suspend']
+        .contains(ticket.status.value.toLowerCase());
 
     return Column(
       children: [
@@ -240,19 +257,30 @@ class _InternalTicketDetailScreenState
                 // Replies Section
                 _buildRepliesSection(repliesAsync),
 
-                // Closed ticket notice
-                if (isTicketClosed) ...[
+                // Terminal status notice
+                if (isTerminalStatus) ...[
                   const SizedBox(height: 16),
-                  _buildClosedTicketNotice(),
+                  _buildTerminalStatusNotice(ticket.status.displayName),
                 ],
               ],
             ),
           ),
         ),
 
-        // Reply Input (disabled if closed)
-        if (!isTicketClosed) _buildReplyInput(),
+        // Reply Input (disabled if terminal status)
+        if (!isTerminalStatus) _buildReplyInputWithStatus(),
       ],
+    );
+  }
+
+  Widget _buildReplyInputWithStatus() {
+    final availableStatusesAsync =
+        ref.watch(internalAvailableStatusesProvider(widget.ticketId));
+
+    return availableStatusesAsync.when(
+      data: (availableStatuses) => _buildReplyInput(availableStatuses),
+      loading: () => _buildReplyInput(null),
+      error: (_, __) => _buildReplyInput(null),
     );
   }
 
@@ -610,30 +638,56 @@ class _InternalTicketDetailScreenState
     );
   }
 
-  Widget _buildClosedTicketNotice() {
+  Widget _buildTerminalStatusNotice(String statusName) {
+    final IconData icon;
+    final Color color;
+    final String message;
+
+    switch (statusName.toLowerCase()) {
+      case 'closed':
+        icon = Icons.lock_outline;
+        color = AppColors.statusClosed;
+        message = 'This ticket has been closed. No further actions can be taken.';
+        break;
+      case 'cancelled':
+        icon = Icons.cancel_outlined;
+        color = AppColors.error;
+        message = 'This ticket has been cancelled. No further actions can be taken.';
+        break;
+      case 'suspend':
+        icon = Icons.block;
+        color = AppColors.warning;
+        message = 'This ticket is suspended. No replies or updates allowed.';
+        break;
+      default:
+        icon = Icons.info_outline;
+        color = AppColors.textHint;
+        message = 'This ticket cannot be modified.';
+    }
+
     return Card(
-      color: AppColors.statusClosed.withOpacity(0.1),
+      color: color.withOpacity(0.1),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
-            Icon(Icons.lock_outline, color: AppColors.statusClosed, size: 24),
+            Icon(icon, color: color, size: 24),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Ticket Closed',
+                    'Ticket $statusName',
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.statusClosed,
+                      color: color,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'This ticket has been closed. No further actions can be taken.',
+                    message,
                     style: TextStyle(
                       fontSize: 13,
                       color: AppColors.textSecondary,
@@ -648,7 +702,7 @@ class _InternalTicketDetailScreenState
     );
   }
 
-  Widget _buildReplyInput() {
+  Widget _buildReplyInput(AvailableStatusModel? availableStatuses) {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.white,
@@ -669,36 +723,62 @@ class _InternalTicketDetailScreenState
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Status Dropdown (for internal users only)
-          DropdownButtonFormField<String>(
-            initialValue: _selectedStatus,
-            decoration: InputDecoration(
-              labelText: 'Update Status (Optional)',
-              prefixIcon: const Icon(Icons.flag_outlined, size: 20),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 8,
+          // Status Dropdown (show only if available options exist)
+          if (availableStatuses != null && availableStatuses.hasOptions) ...[
+            DropdownButtonFormField<String>(
+              value: _selectedStatus,
+              decoration: InputDecoration(
+                labelText: 'Update Status (Optional)',
+                prefixIcon: const Icon(Icons.flag_outlined, size: 20),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                filled: true,
+                fillColor: AppColors.background,
               ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-              filled: true,
-              fillColor: AppColors.background,
+              items: [
+                const DropdownMenuItem(
+                  value: null,
+                  child: Text('No change'),
+                ),
+                ...availableStatuses.availableStatuses.map((option) {
+                  return DropdownMenuItem(
+                    value: option.value,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Flexible(
+                          child: Text(
+                            option.label,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (option.hasPermissionRequirement ||
+                            option.hasRoleRequirement) ...[
+                          const SizedBox(width: 8),
+                          Icon(
+                            Icons.lock_outline,
+                            size: 14,
+                            color: AppColors.textHint,
+                          ),
+                        ],
+                      ],
+                    ),
+                  );
+                }),
+              ],
+              onChanged: (value) {
+                setState(() {
+                  _selectedStatus = value;
+                });
+              },
             ),
-            items: const [
-              DropdownMenuItem(value: null, child: Text('No change')),
-              DropdownMenuItem(value: 'New', child: Text('New')),
-              DropdownMenuItem(value: 'InProgress', child: Text('In Progress')),
-              DropdownMenuItem(value: 'Solved', child: Text('Solved')),
-              DropdownMenuItem(value: 'Closed', child: Text('Closed')),
-            ],
-            onChanged: (value) {
-              setState(() {
-                _selectedStatus = value;
-              });
-            },
-          ),
-          const SizedBox(height: 8),
+            const SizedBox(height: 8),
+          ],
 
           // Selected Files
           if (_selectedFiles.isNotEmpty) ...[
