@@ -303,7 +303,7 @@ class _CustomerTicketDetailScreenState
   }
 
   Widget _buildTicketDetail(TicketModel ticket, AsyncValue<List<TicketReplyModel>> repliesAsync) {
-    final isTicketClosed = ticket.status.value.toLowerCase() == 'closed';
+    final isTicketClosed = ['closed', 'cancelled', 'solved', 'suspend', 'on-hold'].contains(ticket.status.value.toLowerCase());
     
     return Column(
       children: [
@@ -330,7 +330,7 @@ class _CustomerTicketDetailScreenState
                 // Closed ticket notice
                 if (isTicketClosed) ...[
                   const SizedBox(height: 16),
-                  _buildClosedTicketNotice(),
+                  _buildClosedTicketNotice(ticket.status.value),
                 ],
               ],
             ),
@@ -338,7 +338,7 @@ class _CustomerTicketDetailScreenState
         ),
 
         // Reply Input (disabled if closed)
-        if (!isTicketClosed) _buildReplyInput(),
+        if (!isTicketClosed) _buildReplyInput(ticket),
       ],
     );
   }
@@ -750,16 +750,18 @@ class _CustomerTicketDetailScreenState
     );
   }
 
-  Widget _buildClosedTicketNotice() {
+  Widget _buildClosedTicketNotice(String statusValue) {
+    final isCancelled = statusValue.toLowerCase() == 'cancelled';
+    
     return Card(
-      color: AppColors.statusClosed.withOpacity(0.1),
+      color: (isCancelled ? AppColors.error : AppColors.statusClosed).withOpacity(0.1),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
             Icon(
-              Icons.lock_outline,
-              color: AppColors.statusClosed,
+              isCancelled ? Icons.cancel_outlined : Icons.lock_outline,
+              color: isCancelled ? AppColors.error : AppColors.statusClosed,
               size: 24,
             ),
             const SizedBox(width: 12),
@@ -768,16 +770,18 @@ class _CustomerTicketDetailScreenState
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Ticket Closed',
+                    isCancelled ? 'Ticket Cancelled' : 'Ticket Closed',
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.statusClosed,
+                      color: isCancelled ? AppColors.error : AppColors.statusClosed,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'This ticket has been closed. No further actions can be taken.',
+                    isCancelled 
+                        ? 'This ticket has been cancelled. No further actions can be taken.'
+                        : 'This ticket has been closed. No further actions can be taken.',
                     style: TextStyle(
                       fontSize: 13,
                       color: AppColors.textSecondary,
@@ -792,7 +796,32 @@ class _CustomerTicketDetailScreenState
     );
   }
 
-  Widget _buildReplyInput() {
+  Widget _buildReplyInput(TicketModel ticket) {
+    // Get dropdown items based on current ticket status
+    List<DropdownMenuItem<String>> _getStatusDropdownItems() {
+      final currentStatus = ticket.status.value.toLowerCase();
+      
+      if (currentStatus == 'new') {
+        // Status New: customer can set to New or Solved
+        return const [
+          DropdownMenuItem(value: 'New', child: Text('New')),
+          DropdownMenuItem(value: 'Solved', child: Text('Solved')),
+        ];
+      } else if (currentStatus == 'inprogress') {
+        // Status InProgress: customer can only set to Solved or no change
+        return const [
+          DropdownMenuItem(value: null, child: Text('No change')),
+          DropdownMenuItem(value: 'Solved', child: Text('Solved')),
+        ];
+      }
+      
+      // Default: No change and Solved
+      return const [
+        DropdownMenuItem(value: null, child: Text('No change')),
+        DropdownMenuItem(value: 'Solved', child: Text('Solved')),
+      ];
+    }
+    
     return Container(
       decoration: BoxDecoration(
         color: AppColors.white,
@@ -862,11 +891,7 @@ class _CustomerTicketDetailScreenState
                 filled: true,
                 fillColor: AppColors.background,
               ),
-              items: const [
-                DropdownMenuItem(value: null, child: Text('No change')),
-                DropdownMenuItem(value: 'New', child: Text('New')),
-                DropdownMenuItem(value: 'Solved', child: Text('Solved')),
-              ],
+              items: _getStatusDropdownItems(),
               onChanged: (value) {
                 setState(() {
                   _selectedStatus = value;
