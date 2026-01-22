@@ -297,7 +297,12 @@ class _CustomerCreateTicketScreenState
       body: categoryState.isLoading || employeeState.isLoading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.only(
+                left: 16,
+                right: 16,
+                top: 16,
+                bottom: MediaQuery.of(context).padding.bottom + 16,
+              ),
               child: Form(
                 key: _formKey,
                 child: Column(
@@ -601,7 +606,7 @@ class _CustomerCreateTicketScreenState
                           ],
                         ),
                       ),
-                    const SizedBox(height: 32),
+                    SizedBox(height: MediaQuery.of(context).viewInsets.bottom > 0 ? 16 : 32),
 
                     // Submit Button
                     SizedBox(

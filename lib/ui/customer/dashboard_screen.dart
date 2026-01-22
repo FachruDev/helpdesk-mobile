@@ -225,37 +225,42 @@ class _CustomerDashboardScreenState extends ConsumerState<CustomerDashboardScree
                       ? SliverFillRemaining(
                           child: _buildEmptyState(),
                         )
-                      : SliverList(
-                          delegate: SliverChildBuilderDelegate(
-                            (context, index) {
-                              if (index == ticketState.tickets.length) {
-                                return const Center(
-                                  child: Padding(
-                                    padding: EdgeInsets.all(16),
-                                    child: CircularProgressIndicator(),
-                                  ),
-                                );
-                              }
-
-                              final ticket = ticketState.tickets[index];
-                              return TicketCard(
-                                ticket: ticket,
-                                onTap: () async {
-                                  await Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => CustomerTicketDetailScreen(
-                                        ticketId: ticket.ticketId,
-                                      ),
+                      : SliverPadding(
+                          padding: EdgeInsets.only(
+                            bottom: MediaQuery.of(context).padding.bottom + 80,
+                          ),
+                          sliver: SliverList(
+                            delegate: SliverChildBuilderDelegate(
+                              (context, index) {
+                                if (index == ticketState.tickets.length) {
+                                  return const Center(
+                                    child: Padding(
+                                      padding: EdgeInsets.all(16),
+                                      child: CircularProgressIndicator(),
                                     ),
                                   );
-                                  // Refresh tickets when returning from detail
-                                  _refreshTickets();
-                                },
-                              );
-                            },
-                            childCount: ticketState.tickets.length + 
-                                (ticketState.isLoadingMore ? 1 : 0),
+                                }
+
+                                final ticket = ticketState.tickets[index];
+                                return TicketCard(
+                                  ticket: ticket,
+                                  onTap: () async {
+                                    await Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => CustomerTicketDetailScreen(
+                                          ticketId: ticket.ticketId,
+                                        ),
+                                      ),
+                                    );
+                                    // Refresh tickets when returning from detail
+                                    _refreshTickets();
+                                  },
+                                );
+                              },
+                              childCount: ticketState.tickets.length + 
+                                  (ticketState.isLoadingMore ? 1 : 0),
+                            ),
                           ),
                         ),
                 ],
