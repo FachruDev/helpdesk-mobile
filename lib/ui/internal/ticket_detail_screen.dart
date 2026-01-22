@@ -726,7 +726,7 @@ class _InternalTicketDetailScreenState
           // Status Dropdown (show only if available options exist)
           if (availableStatuses != null && availableStatuses.hasOptions) ...[
             DropdownButtonFormField<String>(
-              value: _selectedStatus,
+              initialValue: _selectedStatus,
               decoration: InputDecoration(
                 labelText: 'Update Status (Optional)',
                 prefixIcon: const Icon(Icons.flag_outlined, size: 20),
