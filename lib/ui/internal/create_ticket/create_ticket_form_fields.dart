@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:html_editor_enhanced/html_editor.dart';
 import 'package:helpdesk_mobile/config/app_colors.dart';
 import 'package:helpdesk_mobile/data/models/category_model.dart';
@@ -142,6 +143,40 @@ class CreateTicketFormFields extends StatelessWidget {
           SnackBar(
             content: Text('Only $remainingSlots files added (max 5 total)'),
             backgroundColor: AppColors.warning,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _takePhoto(BuildContext context) async {
+    if (selectedFiles.length >= 5) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Maximum 5 files allowed'),
+          backgroundColor: AppColors.warning,
+        ),
+      );
+      return;
+    }
+
+    final picker = ImagePicker();
+    final XFile? photo = await picker.pickImage(
+      source: ImageSource.camera,
+      maxWidth: 1920,
+      maxHeight: 1920,
+      imageQuality: 85,
+    );
+
+    if (photo != null) {
+      final updatedFiles = [...selectedFiles, File(photo.path)];
+      onFilesPicked(updatedFiles);
+      
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Photo captured successfully'),
+            backgroundColor: AppColors.success,
           ),
         );
       }
@@ -348,17 +383,47 @@ class CreateTicketFormFields extends StatelessWidget {
           ),
         if (envatoRequired) const SizedBox(height: 16),
 
-        // File Picker
-        OutlinedButton.icon(
-          onPressed: selectedFiles.length < 5
-              ? () => _pickFiles(context)
-              : null,
-          icon: const Icon(Icons.attach_file),
-          label: Text(
-            'Attach Files (${selectedFiles.length}/5)',
-            style: const TextStyle(fontSize: 14),
-          ),
+        // Attachment Buttons
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: selectedFiles.length < 5
+                    ? () => _takePhoto(context)
+                    : null,
+                icon: const Icon(Icons.camera_alt),
+                label: const Text('Camera'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: selectedFiles.length < 5
+                    ? () => _pickFiles(context)
+                    : null,
+                icon: const Icon(Icons.attach_file),
+                label: const Text('Files'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.info,
+                ),
+              ),
+            ),
+          ],
         ),
+        if (selectedFiles.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text(
+              '${selectedFiles.length}/5 files selected',
+              style: const TextStyle(
+                fontSize: 12,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ),
         const SizedBox(height: 16),
 
         // Selected Files List

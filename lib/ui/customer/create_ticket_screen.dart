@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:html_editor_enhanced/html_editor.dart';
 import 'package:helpdesk_mobile/config/app_colors.dart';
 import 'package:helpdesk_mobile/data/models/category_model.dart';
@@ -139,6 +140,43 @@ class _CustomerCreateTicketScreenState
           SnackBar(
             content: Text('Only $remainingSlots files added (max 5 total)'),
             backgroundColor: AppColors.warning,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _takePhoto() async {
+    if (_selectedFiles.length >= 5) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Maximum 5 files allowed'),
+            backgroundColor: AppColors.warning,
+          ),
+        );
+      }
+      return;
+    }
+
+    final picker = ImagePicker();
+    final XFile? photo = await picker.pickImage(
+      source: ImageSource.camera,
+      maxWidth: 1920,
+      maxHeight: 1920,
+      imageQuality: 85,
+    );
+
+    if (photo != null) {
+      setState(() {
+        _selectedFiles.add(File(photo.path));
+      });
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Photo captured successfully'),
+            backgroundColor: AppColors.success,
           ),
         );
       }
@@ -476,15 +514,43 @@ class _CustomerCreateTicketScreenState
                       ),
                     if (_envatoRequired) const SizedBox(height: 16),
 
-                    // File Picker
-                    OutlinedButton.icon(
-                      onPressed: _selectedFiles.length < 5 ? _pickFiles : null,
-                      icon: const Icon(Icons.attach_file),
-                      label: Text(
-                        'Attach Files (${_selectedFiles.length}/5)',
-                        style: const TextStyle(fontSize: 14),
-                      ),
+                    // Attachment Buttons
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: _selectedFiles.length < 5 ? _takePhoto : null,
+                            icon: const Icon(Icons.camera_alt),
+                            label: const Text('Camera'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppColors.primary,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: _selectedFiles.length < 5 ? _pickFiles : null,
+                            icon: const Icon(Icons.attach_file),
+                            label: const Text('Files'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppColors.info,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
+                    if (_selectedFiles.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Text(
+                          '${_selectedFiles.length}/5 files selected',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ),
                     const SizedBox(height: 16),
 
                     // Selected Files List

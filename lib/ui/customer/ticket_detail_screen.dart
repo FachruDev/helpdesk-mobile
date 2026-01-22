@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_html/flutter_html.dart';
 import 'package:helpdesk_mobile/config/app_colors.dart';
@@ -67,6 +68,41 @@ class _CustomerTicketDetailScreenState
         final remainingSlots = 5 - _selectedFiles.length;
         _selectedFiles.addAll(newFiles.take(remainingSlots));
       });
+    }
+  }
+
+  Future<void> _takePhoto() async {
+    if (_selectedFiles.length >= 5) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Maximum 5 files allowed'),
+          backgroundColor: AppColors.warning,
+        ),
+      );
+      return;
+    }
+
+    final picker = ImagePicker();
+    final XFile? photo = await picker.pickImage(
+      source: ImageSource.camera,
+      maxWidth: 1920,
+      maxHeight: 1920,
+      imageQuality: 85,
+    );
+
+    if (photo != null) {
+      setState(() {
+        _selectedFiles.add(File(photo.path));
+      });
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Photo captured successfully'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      }
     }
   }
 
@@ -316,21 +352,33 @@ class _CustomerTicketDetailScreenState
             const SizedBox(height: 12),
 
             // Message
-            Html(
-              data: ticket.message ?? '',
-              style: {
-                "body": Style(
-                  margin: Margins.zero,
-                  padding: HtmlPaddings.zero,
-                  fontSize: FontSize(15),
-                  color: AppColors.textSecondary,
-                  lineHeight: const LineHeight(1.5),
+            LimitedBox(
+              maxHeight: 350, // Limit tinggi maksimal untuk deskripsi ticket
+              child: Container(
+                constraints: const BoxConstraints(
+                  maxHeight: 350,
                 ),
-                "p": Style(
-                  margin: Margins.zero,
-                  padding: HtmlPaddings.zero,
+                child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  child: Html(
+                    data: ticket.message ?? '',
+                    shrinkWrap: true,
+                    style: {
+                      "body": Style(
+                        margin: Margins.zero,
+                        padding: HtmlPaddings.zero,
+                        fontSize: FontSize(15),
+                        color: AppColors.textSecondary,
+                        lineHeight: const LineHeight(1.5),
+                      ),
+                      "p": Style(
+                        margin: Margins.zero,
+                        padding: HtmlPaddings.zero,
+                      ),
+                    },
+                  ),
                 ),
-              },
+              ),
             ),
             const SizedBox(height: 16),
             const Divider(),
@@ -605,21 +653,35 @@ class _CustomerTicketDetailScreenState
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Html(
-                  data: reply.comment,
-                  style: {
-                    "body": Style(
-                      margin: Margins.zero,
-                      padding: HtmlPaddings.zero,
-                      fontSize: FontSize(14),
-                      color: AppColors.textSecondary,
-                      lineHeight: const LineHeight(1.5),
+                LimitedBox(
+                  maxHeight: 250, // Limit tinggi maksimal
+                  child: Container(
+                    constraints: const BoxConstraints(
+                      maxHeight: 250,
                     ),
-                    "p": Style(
-                      margin: Margins.zero,
-                      padding: HtmlPaddings.zero,
+                    child: SingleChildScrollView(
+                      physics: const BouncingScrollPhysics(),
+                      child: Html(
+                        data: reply.comment,
+                        shrinkWrap: true,
+                        style: {
+                          "body": Style(
+                            margin: Margins.zero,
+                            padding: HtmlPaddings.zero,
+                            fontSize: FontSize(14),
+                            color: AppColors.textSecondary,
+                            lineHeight: const LineHeight(1.5),
+                            maxLines: 100,
+                            textOverflow: TextOverflow.ellipsis,
+                          ),
+                          "p": Style(
+                            margin: Margins.zero,
+                            padding: HtmlPaddings.zero,
+                          ),
+                        },
+                      ),
                     ),
-                  },
+                  ),
                 ),
                 // Edited indicator (compact, below message)
                 if (reply.isEdited) ...[
@@ -815,30 +877,43 @@ class _CustomerTicketDetailScreenState
           // Input Row
           Row(
             children: [
+              // Camera button (disabled in edit mode)
+              IconButton(
+                icon: const Icon(Icons.camera_alt),
+                onPressed: _isEditMode 
+                    ? null 
+                    : (_selectedFiles.length < 5 ? _takePhoto : null),
+                color: _isEditMode ? AppColors.textHint : AppColors.primary,
+              ),
               // Attach button (disabled in edit mode)
               IconButton(
                 icon: const Icon(Icons.attach_file),
                 onPressed: _isEditMode 
                     ? null 
                     : (_selectedFiles.length < 5 ? _pickFiles : null),
-                color: _isEditMode ? AppColors.textHint : AppColors.primary,
+                color: _isEditMode ? AppColors.textHint : AppColors.info,
               ),
               Expanded(
-                child: TextField(
-                  controller: _replyController,
-                  decoration: InputDecoration(
-                    hintText: _isEditMode 
-                        ? 'Edit your reply...' 
-                        : 'Type your reply...',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(24),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 10,
-                    ),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(
+                    maxHeight: 120,
                   ),
-                  maxLines: null,
+                  child: TextField(
+                    controller: _replyController,
+                    decoration: InputDecoration(
+                      hintText: _isEditMode 
+                          ? 'Edit your reply...' 
+                          : 'Type your reply...',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 10,
+                      ),
+                    ),
+                    maxLines: null,
+                  ),
                 ),
               ),
               const SizedBox(width: 8),

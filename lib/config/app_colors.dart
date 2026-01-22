@@ -6,7 +6,7 @@ class AppColors {
 
   // Primary Colors (from helpdesk web)
   static const Color background = Color(0xFFF5F5F5);
-  static const Color primary = Color(0xFF17263A); 
+  static const Color primary = Color(0xFF3462EC); 
   static const Color lightGray = Color(0xFFE0E0E0);
 
   // Supporting Colors
