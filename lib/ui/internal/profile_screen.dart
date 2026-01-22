@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:helpdesk_mobile/config/app_colors.dart';
 import 'package:helpdesk_mobile/states/internal/internal_auth_provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class InternalProfileScreen extends ConsumerStatefulWidget {
   const InternalProfileScreen({super.key});
@@ -104,6 +105,88 @@ class _InternalProfileScreenState extends ConsumerState<InternalProfileScreen> {
                             ),
                           ],
                         ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Website Information Card
+                  Card(
+                    color: AppColors.info.withOpacity(0.1),
+                    child: InkWell(
+                      onTap: () async {
+                        final url = Uri.parse('https://helpdesk.galenium.com');
+                        if (await canLaunchUrl(url)) {
+                          await launchUrl(url, mode: LaunchMode.externalApplication);
+                        } else {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Unable to open website'),
+                                backgroundColor: AppColors.error,
+                              ),
+                            );
+                          }
+                        }
+                      },
+                      borderRadius: BorderRadius.circular(12),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: AppColors.info.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Icon(
+                                Icons.language,
+                                color: AppColors.info,
+                                size: 28,
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Update Profile',
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColors.info,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'For complete profile updates, please visit our website and login with your account',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    'helpdesk.galenium.com',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.info,
+                                      decoration: TextDecoration.underline,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const Icon(
+                              Icons.arrow_forward_ios,
+                              size: 16,
+                              color: AppColors.info,
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
