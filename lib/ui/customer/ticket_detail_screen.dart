@@ -112,6 +112,38 @@ class _CustomerTicketDetailScreenState
     });
   }
 
+  String _getErrorMessage(String? apiMessage) {
+    if (apiMessage == null) {
+      return 'Failed to send reply. Please try again.';
+    }
+    
+    final lowerMessage = apiMessage.toLowerCase();
+    
+    // Handle common validation errors
+    if (lowerMessage.contains('invalid') || lowerMessage.contains('validation')) {
+      return 'Please check your input. Make sure all required fields are filled correctly.';
+    }
+    
+    if (lowerMessage.contains('status')) {
+      return 'Invalid status selected. Please choose a valid status option.';
+    }
+    
+    if (lowerMessage.contains('file') || lowerMessage.contains('attachment')) {
+      return 'Unable to upload attachments. Please check file size and format.';
+    }
+    
+    if (lowerMessage.contains('permission') || lowerMessage.contains('unauthorized')) {
+      return 'You do not have permission to perform this action.';
+    }
+    
+    if (lowerMessage.contains('network') || lowerMessage.contains('connection')) {
+      return 'Network error. Please check your internet connection.';
+    }
+    
+    // Return original message if no specific match
+    return apiMessage;
+  }
+
   Future<void> _sendReply() async {
     if (_replyController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -177,7 +209,7 @@ class _CustomerTicketDetailScreenState
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(response.message ?? 'Failed to send reply'),
+            content: Text(_getErrorMessage(response.message)),
             backgroundColor: AppColors.error,
           ),
         );
