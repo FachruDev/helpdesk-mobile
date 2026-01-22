@@ -175,8 +175,7 @@ class _CustomerLoginScreenState extends ConsumerState<CustomerLoginScreen> {
                   // Switch to Internal Login
                   TextButton(
                     onPressed: () {
-                      Navigator.push(
-                        context,
+                      Navigator.of(context).pushReplacement(
                         MaterialPageRoute(
                           builder: (_) => const InternalLoginScreen(),
                         ),

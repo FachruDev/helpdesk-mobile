@@ -803,7 +803,7 @@ class _CustomerTicketDetailScreenState
 
   Widget _buildReplyInput(TicketModel ticket) {
     // Get dropdown items based on current ticket status
-    List<DropdownMenuItem<String>> _getStatusDropdownItems() {
+    List<DropdownMenuItem<String>> getStatusDropdownItems() {
       final currentStatus = ticket.status.value.toLowerCase();
       
       if (currentStatus == 'new') {
@@ -896,7 +896,7 @@ class _CustomerTicketDetailScreenState
                 filled: true,
                 fillColor: AppColors.background,
               ),
-              items: _getStatusDropdownItems(),
+              items: getStatusDropdownItems(),
               onChanged: (value) {
                 setState(() {
                   _selectedStatus = value;

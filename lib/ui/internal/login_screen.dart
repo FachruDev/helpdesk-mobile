@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helpdesk_mobile/config/app_colors.dart';
 import 'package:helpdesk_mobile/states/internal/internal_auth_provider.dart';
 import 'package:helpdesk_mobile/ui/internal/dashboard_screen.dart';
+import 'package:helpdesk_mobile/ui/customer/login_screen.dart';
 
 class InternalLoginScreen extends ConsumerStatefulWidget {
   const InternalLoginScreen({super.key});
@@ -60,7 +61,13 @@ class _InternalLoginScreenState extends ConsumerState<InternalLoginScreen> {
         elevation: 0,
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: AppColors.primary),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (_) => const CustomerLoginScreen(),
+              ),
+            );
+          },
         ),
       ),
       body: SafeArea(
@@ -193,7 +200,13 @@ class _InternalLoginScreenState extends ConsumerState<InternalLoginScreen> {
 
                   // Back to Customer Login Button
                   TextButton.icon(
-                    onPressed: () => Navigator.pop(context),
+                    onPressed: () {
+                      Navigator.of(context).pushReplacement(
+                        MaterialPageRoute(
+                          builder: (_) => const CustomerLoginScreen(),
+                        ),
+                      );
+                    },
                     icon: const Icon(Icons.arrow_back, size: 18),
                     label: const Text('Back to Customer Login'),
                     style: TextButton.styleFrom(

@@ -6,7 +6,7 @@ import 'package:helpdesk_mobile/states/internal/internal_ticket_provider.dart';
 import 'package:helpdesk_mobile/ui/internal/widgets/internal_drawer.dart';
 import 'package:helpdesk_mobile/ui/shared/widgets/ticket_card.dart';
 import 'package:helpdesk_mobile/ui/customer/widgets/ticket_statistics_widget.dart';
-import 'package:helpdesk_mobile/ui/internal/login_screen.dart';
+import 'package:helpdesk_mobile/ui/customer/login_screen.dart';
 import 'package:helpdesk_mobile/ui/internal/profile_screen.dart';
 import 'package:helpdesk_mobile/ui/internal/filter_screen.dart';
 import 'package:helpdesk_mobile/ui/internal/ticket_detail_screen.dart';
@@ -118,7 +118,7 @@ class _InternalDashboardScreenState
       await ref.read(internalAuthProvider.notifier).logout();
       if (mounted) {
         Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const InternalLoginScreen()),
+          MaterialPageRoute(builder: (_) => const CustomerLoginScreen()),
           (route) => false,
         );
       }
