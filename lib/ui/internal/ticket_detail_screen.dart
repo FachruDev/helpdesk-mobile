@@ -617,54 +617,53 @@ class _InternalTicketDetailScreenState
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  child: Row(
                     children: [
-                      Text(
-                        reply.userName,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary,
+                      Flexible(
+                        child: Text(
+                          reply.userName,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textPrimary,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      Row(
-                        children: [
-                          Text(
-                            DateFormat(
-                              'dd MMM yyyy, HH:mm',
-                            ).format(reply.createdAt),
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: AppColors.textHint,
-                            ),
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: isEmployee
+                              ? AppColors.success.withOpacity(0.1)
+                              : AppColors.primary.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          reply.userRole,
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: isEmployee ? AppColors.success : AppColors.primary,
                           ),
-                        ],
+                        ),
                       ),
                     ],
                   ),
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: isEmployee
-                        ? AppColors.success.withOpacity(0.1)
-                        : AppColors.primary.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    reply.userRole,
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: isEmployee ? AppColors.success : AppColors.primary,
-                    ),
-                  ),
-                ),
               ],
+            ),
+            const SizedBox(height: 4),
+            // Date time
+            Padding(
+              padding: const EdgeInsets.only(left: 40),
+              child: Text(
+                DateFormat('dd MMM yyyy, HH:mm').format(reply.createdAt),
+                style: TextStyle(
+                  fontSize: 11,
+                  color: AppColors.textHint,
+                ),
+              ),
             ),
             const SizedBox(height: 12),
 
