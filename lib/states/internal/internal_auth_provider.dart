@@ -51,10 +51,20 @@ class InternalAuthNotifier extends Notifier<InternalAuthState> {
     final isAuth = await _repository.isAuthenticated();
     if (isAuth) {
       final user = await _repository.getStoredUser();
-      state = state.copyWith(
-        isAuthenticated: true,
-        user: user,
-      );
+      // Validate token by calling me endpoint
+      final response = await _repository.me();
+      if (response.success && response.data != null) {
+        state = state.copyWith(
+          isAuthenticated: true,
+          user: response.data,
+        );
+      } else {
+        // Token invalid, logout
+        await _repository.logout();
+        state = InternalAuthState(
+          isAuthenticated: false,
+        );
+      }
     }
   }
 
@@ -109,6 +119,9 @@ class InternalAuthNotifier extends Notifier<InternalAuthState> {
           user: response.data,
           isAuthenticated: true,
         );
+      } else {
+        // Token invalid, logout
+        await logout();
       }
     } catch (e) {
       // Handle error silently or update state if needed

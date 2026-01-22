@@ -30,9 +30,20 @@ class _InternalDashboardScreenState
   @override
   void initState() {
     super.initState();
-    // Load tickets on init
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(internalTicketProvider.notifier).fetchTickets(refresh: true);
+    // Load tickets on init and validate token
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await ref.read(internalAuthProvider.notifier).fetchProfile();
+      if (ref.read(internalAuthProvider).isAuthenticated) {
+        ref.read(internalTicketProvider.notifier).fetchTickets(refresh: true);
+      } else {
+        // Token invalid, redirect to login
+        if (mounted) {
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (_) => const CustomerLoginScreen()),
+            (route) => false,
+          );
+        }
+      }
     });
   }
 

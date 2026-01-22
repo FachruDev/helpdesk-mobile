@@ -9,8 +9,18 @@ import 'package:helpdesk_mobile/data/models/employee_model.dart';
 import 'package:helpdesk_mobile/data/services/storage_service.dart';
 
 class CustomerTicketRepository {
+  // Callback for handling 401 errors
+  Function()? onUnauthorized;
+
   Future<String?> _getToken() async {
     return await StorageService.getCustomerToken();
+  }
+
+  // Check if response is 401 and trigger logout
+  void _checkUnauthorized(int statusCode) {
+    if (statusCode == 401 && onUnauthorized != null) {
+      onUnauthorized!();
+    }
   }
 
   /// Get all categories
@@ -163,6 +173,8 @@ class CustomerTicketRepository {
       );
 
       final Map<String, dynamic> responseData = jsonDecode(response.body);
+
+      _checkUnauthorized(response.statusCode);
 
       if (response.statusCode == 200) {
         final ticketsData = responseData['data'] ?? responseData['tickets'] ?? [];
