@@ -307,7 +307,12 @@ class _InternalTicketDetailScreenState
         Expanded(
           child: SingleChildScrollView(
             controller: _scrollController,
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.only(
+              left: 16,
+              right: 16,
+              top: 16,
+              bottom: isTerminalStatus ? MediaQuery.of(context).padding.bottom + 16 : 16,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
