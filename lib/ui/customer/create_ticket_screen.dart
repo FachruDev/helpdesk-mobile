@@ -20,11 +20,7 @@ class RequestToOption {
   final String name;
   final bool isOther;
 
-  RequestToOption({
-    required this.id,
-    required this.name,
-    this.isOther = false,
-  });
+  RequestToOption({required this.id, required this.name, this.isOther = false});
 
   factory RequestToOption.fromEmployee(EmployeeModel employee) {
     return RequestToOption(
@@ -35,11 +31,7 @@ class RequestToOption {
   }
 
   factory RequestToOption.other() {
-    return RequestToOption(
-      id: 'other',
-      name: 'Other',
-      isOther: true,
-    );
+    return RequestToOption(id: 'other', name: 'Other', isOther: true);
   }
 
   @override
@@ -52,7 +44,6 @@ class RequestToOption {
   @override
   int get hashCode => id.hashCode;
 }
-
 
 class CustomerCreateTicketScreen extends ConsumerStatefulWidget {
   const CustomerCreateTicketScreen({super.key});
@@ -78,13 +69,13 @@ class _CustomerCreateTicketScreenState
   bool _isRequestToOther = false;
   final List<File> _selectedFiles = [];
   bool _isSubmitting = false;
-  
+
   // Category extras state
   List<SubCategoryModel> _availableSubCategories = [];
   List<ProjectModel> _availableProjects = [];
   bool _envatoRequired = false;
   bool _loadingExtras = false;
-  
+
   // Request To helper
   RequestToOption? _selectedRequestTo;
 
@@ -130,7 +121,7 @@ class _CustomerCreateTicketScreenState
           .toList();
 
       final remainingSlots = 5 - _selectedFiles.length;
-      
+
       setState(() {
         _selectedFiles.addAll(newFiles.take(remainingSlots));
       });
@@ -171,7 +162,7 @@ class _CustomerCreateTicketScreenState
       setState(() {
         _selectedFiles.add(File(photo.path));
       });
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -197,12 +188,12 @@ class _CustomerCreateTicketScreenState
 
     setState(() {
       _loadingExtras = false;
-      
+
       if (response.success && response.data != null) {
         _availableSubCategories = response.data!.subCategories;
         _availableProjects = response.data!.projects;
         _envatoRequired = response.data!.envatoRequired;
-        
+
         print('===== EXTRAS LOADED =====');
         print('SubCategories: ${_availableSubCategories.length}');
         print('Projects: ${_availableProjects.length}');
@@ -220,7 +211,8 @@ class _CustomerCreateTicketScreenState
     if (!_formKey.currentState!.validate()) return;
 
     // Validate HTML editor
-    final messageValid = await _messageFieldKey.currentState?.validate() ?? false;
+    final messageValid =
+        await _messageFieldKey.currentState?.validate() ?? false;
     if (!messageValid) return;
 
     if (_selectedCategory == null) {
@@ -246,7 +238,9 @@ class _CustomerCreateTicketScreenState
     setState(() => _isSubmitting = true);
 
     final messageHtml = await _messageController.getText();
-    final success = await ref.read(customerTicketProvider.notifier).createTicket(
+    final success = await ref
+        .read(customerTicketProvider.notifier)
+        .createTicket(
           subject: _subjectController.text.trim(),
           categoryId: _selectedCategory!.id,
           message: messageHtml,
@@ -291,9 +285,7 @@ class _CustomerCreateTicketScreenState
     final employeeState = ref.watch(customerEmployeeProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Create Ticket'),
-      ),
+      appBar: AppBar(title: const Text('Create Ticket')),
       body: categoryState.isLoading || employeeState.isLoading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
@@ -342,7 +334,7 @@ class _CustomerCreateTicketScreenState
                             _selectedProject = null;
                             _selectedEnvatoSupport = null;
                           });
-                          
+
                           // Fetch category extras
                           await _fetchCategoryExtras(value.id);
                         } else {
@@ -387,7 +379,8 @@ class _CustomerCreateTicketScreenState
                           });
                         },
                         validator: (value) {
-                          if (_availableSubCategories.isNotEmpty && value == null) {
+                          if (_availableSubCategories.isNotEmpty &&
+                              value == null) {
                             return 'Sub category is required';
                           }
                           return null;
@@ -428,7 +421,10 @@ class _CustomerCreateTicketScreenState
                       hintText: 'Describe your issue',
                       height: 300,
                       validator: (value) {
-                        if (value == null || value.trim().isEmpty || value == '<p></p>' || value == '<p><br></p>') {
+                        if (value == null ||
+                            value.trim().isEmpty ||
+                            value == '<p></p>' ||
+                            value == '<p><br></p>') {
                           return 'Message is required';
                         }
                         return null;
@@ -437,33 +433,53 @@ class _CustomerCreateTicketScreenState
                     const SizedBox(height: 16),
 
                     // Request To - Searchable
-                    SearchableDropdown<RequestToOption>(
-                      labelText: 'Request To *',
-                      prefixIcon: Icons.person,
-                      selectedItem: _selectedRequestTo,
-                      items: [
-                        ...employeeState.employees.map((e) => 
-                          RequestToOption.fromEmployee(e)
-                        ),
-                        RequestToOption.other(),
-                      ],
-                      itemAsString: (option) => option.name,
-                      searchHint: 'Search employee...',
-                      onChanged: (value) {
-                        setState(() {
-                          _selectedRequestTo = value;
-                          _isRequestToOther = value?.isOther ?? false;
-                          if (value != null && !value.isOther) {
-                            _selectedEmployee = employeeState.employees
-                                .firstWhere((e) => e.id.toString() == value.id);
-                          } else {
-                            _selectedEmployee = null;
-                          }
-                        });
-                      },
-                      validator: (value) {
-                        if (value == null) return 'Request to is required';
-                        return null;
+                    Builder(
+                      builder: (context) {
+                        final requestToItems = [
+                          ...employeeState.employees.map((e) {
+                            print(
+                              '👤 [UI] Mapping employee: ${e.name} (ID: ${e.id})',
+                            );
+                            return RequestToOption.fromEmployee(e);
+                          }),
+                          RequestToOption.other(),
+                        ];
+                        print(
+                          '📝 [UI] Total Request To items: ${requestToItems.length}',
+                        );
+
+                        return SearchableDropdown<RequestToOption>(
+                          labelText: 'Request To *',
+                          prefixIcon: Icons.person,
+                          selectedItem: _selectedRequestTo,
+                          items: requestToItems,
+                          itemAsString: (option) {
+                            print('🏷️ [UI] itemAsString for: ${option.name}');
+                            return option.name;
+                          },
+                          searchHint: 'Search employee...',
+                          onChanged: (value) {
+                            print(
+                              '🔄 [UI] Request To changed to: ${value?.name}',
+                            );
+                            setState(() {
+                              _selectedRequestTo = value;
+                              _isRequestToOther = value?.isOther ?? false;
+                              if (value != null && !value.isOther) {
+                                _selectedEmployee = employeeState.employees
+                                    .firstWhere(
+                                      (e) => e.id.toString() == value.id,
+                                    );
+                              } else {
+                                _selectedEmployee = null;
+                              }
+                            });
+                          },
+                          validator: (value) {
+                            if (value == null) return 'Request to is required';
+                            return null;
+                          },
+                        );
                       },
                     ),
                     const SizedBox(height: 16),
@@ -524,7 +540,9 @@ class _CustomerCreateTicketScreenState
                       children: [
                         Expanded(
                           child: OutlinedButton.icon(
-                            onPressed: _selectedFiles.length < 5 ? _takePhoto : null,
+                            onPressed: _selectedFiles.length < 5
+                                ? _takePhoto
+                                : null,
                             icon: const Icon(Icons.camera_alt),
                             label: const Text('Camera'),
                             style: OutlinedButton.styleFrom(
@@ -535,7 +553,9 @@ class _CustomerCreateTicketScreenState
                         const SizedBox(width: 12),
                         Expanded(
                           child: OutlinedButton.icon(
-                            onPressed: _selectedFiles.length < 5 ? _pickFiles : null,
+                            onPressed: _selectedFiles.length < 5
+                                ? _pickFiles
+                                : null,
                             icon: const Icon(Icons.attach_file),
                             label: const Text('Files'),
                             style: OutlinedButton.styleFrom(
@@ -606,7 +626,11 @@ class _CustomerCreateTicketScreenState
                           ],
                         ),
                       ),
-                    SizedBox(height: MediaQuery.of(context).viewInsets.bottom > 0 ? 16 : 32),
+                    SizedBox(
+                      height: MediaQuery.of(context).viewInsets.bottom > 0
+                          ? 16
+                          : 32,
+                    ),
 
                     // Submit Button
                     SizedBox(

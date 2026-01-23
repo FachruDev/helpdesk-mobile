@@ -3,7 +3,9 @@ import 'package:helpdesk_mobile/data/models/employee_model.dart';
 import 'package:helpdesk_mobile/data/repository/customer/customer_ticket_repository.dart';
 
 // Repository Provider
-final customerEmployeeRepositoryProvider = Provider<CustomerTicketRepository>((ref) {
+final customerEmployeeRepositoryProvider = Provider<CustomerTicketRepository>((
+  ref,
+) {
   return CustomerTicketRepository();
 });
 
@@ -34,7 +36,8 @@ class CustomerEmployeeState {
 
 // Employee Notifier
 class CustomerEmployeeNotifier extends Notifier<CustomerEmployeeState> {
-  CustomerTicketRepository get _repository => ref.read(customerEmployeeRepositoryProvider);
+  CustomerTicketRepository get _repository =>
+      ref.read(customerEmployeeRepositoryProvider);
 
   @override
   CustomerEmployeeState build() {
@@ -43,34 +46,53 @@ class CustomerEmployeeNotifier extends Notifier<CustomerEmployeeState> {
 
   // Fetch employees
   Future<void> fetchEmployees() async {
+    print('\n========== FETCH EMPLOYEES START ==========');
+
     if (state.employees.isNotEmpty) {
-      // Already loaded, skip
+      print(
+        '⏭️ [PROVIDER] Employees already loaded: ${state.employees.length}',
+      );
       return;
     }
 
+    print('🔄 [PROVIDER] Starting to fetch employees...');
     state = state.copyWith(isLoading: true, errorMessage: null);
 
     try {
       final response = await _repository.getEmployees();
+      print('📥 [PROVIDER] Repository response received');
+      print('   - Success: ${response.success}');
+      print('   - Data count: ${response.data?.length ?? 0}');
+      print('   - Message: ${response.message ?? "none"}');
 
       if (response.success && response.data != null) {
+        print(
+          '✅ [PROVIDER] Setting ${response.data!.length} employees to state',
+        );
         state = state.copyWith(
           isLoading: false,
           employees: response.data!,
           errorMessage: null,
         );
+        print('✅ [PROVIDER] State updated successfully');
+        print('   - Current state employees: ${state.employees.length}');
+        print(
+          '   - First employee: ${state.employees.isNotEmpty ? state.employees.first.name : "none"}',
+        );
       } else {
+        print('❌ [PROVIDER] Failed to fetch employees: ${response.message}');
         state = state.copyWith(
           isLoading: false,
           errorMessage: response.message ?? 'Failed to fetch employees',
         );
       }
-    } catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        errorMessage: e.toString(),
-      );
+    } catch (e, stackTrace) {
+      print('💥 [PROVIDER] Exception: $e');
+      print('📚 [PROVIDER] Stack trace: $stackTrace');
+      state = state.copyWith(isLoading: false, errorMessage: e.toString());
     }
+
+    print('========== FETCH EMPLOYEES END ==========\n');
   }
 
   // Refresh employees
@@ -93,10 +115,7 @@ class CustomerEmployeeNotifier extends Notifier<CustomerEmployeeState> {
         );
       }
     } catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        errorMessage: e.toString(),
-      );
+      state = state.copyWith(isLoading: false, errorMessage: e.toString());
     }
   }
 
@@ -116,6 +135,7 @@ class CustomerEmployeeNotifier extends Notifier<CustomerEmployeeState> {
 }
 
 // Provider
-final customerEmployeeProvider = NotifierProvider<CustomerEmployeeNotifier, CustomerEmployeeState>(() {
-  return CustomerEmployeeNotifier();
-});
+final customerEmployeeProvider =
+    NotifierProvider<CustomerEmployeeNotifier, CustomerEmployeeState>(() {
+      return CustomerEmployeeNotifier();
+    });
