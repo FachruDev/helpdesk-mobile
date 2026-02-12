@@ -49,3 +49,20 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Firebase configuration files
+# Note: Jika repo private, bisa di-uncomment untuk ditrack
+android/app/google-services.json
+ios/Runner/GoogleService-Info.plist
+lib/firebase_options.dart
+
+# Firebase debug/generated files
+.firebase/
+firebase-debug.log
+firebase-debug.*.log
+
+FCM_IMPLEMENTATION.md
+FCM_V1_MIGRATION.md
+FIREBASE_SETUP.md
+FCM_IMPROVEMENTS.md
+QUICKSTART.md

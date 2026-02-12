@@ -1,6 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helpdesk_mobile/data/models/user_model.dart';
 import 'package:helpdesk_mobile/data/repository/customer/customer_auth_repository.dart';
+import 'package:helpdesk_mobile/data/services/fcm_service.dart';
+import 'package:helpdesk_mobile/data/services/fcm_api_service.dart';
+import 'package:helpdesk_mobile/data/services/storage_service.dart';
 
 // Repository Provider
 final customerAuthRepositoryProvider = Provider<CustomerAuthRepository>((ref) {
@@ -90,6 +93,10 @@ class CustomerAuthNotifier extends Notifier<CustomerAuthState> {
           user: user,
           errorMessage: null,
         );
+        
+        // Register FCM token after successful login
+        _registerFcmToken();
+        
         return true;
       } else {
         state = state.copyWith(
@@ -133,6 +140,9 @@ class CustomerAuthNotifier extends Notifier<CustomerAuthState> {
     state = state.copyWith(isLoading: true);
 
     try {
+      // Unregister FCM token before logout
+      await _unregisterFcmToken();
+      
       await _repository.logout();
       
       state = CustomerAuthState(
@@ -144,6 +154,45 @@ class CustomerAuthNotifier extends Notifier<CustomerAuthState> {
         isLoading: false,
         isAuthenticated: false,
       );
+    }
+  }
+  
+  // Register FCM token
+  Future<void> _registerFcmToken() async {
+    try {
+      final fcmService = FcmService();
+      final token = await StorageService.getCustomerToken();
+      
+      if (token == null || fcmService.fcmToken == null) return;
+      
+      final deviceInfo = fcmService.getDeviceInfo();
+      await FcmApiService.registerCustomerToken(
+        token: token,
+        fcmToken: deviceInfo['fcm_token'],
+        platform: deviceInfo['platform'],
+        appVersion: deviceInfo['app_version'],
+      );
+    } catch (e) {
+      // Handle silently
+    }
+  }
+  
+  // Unregister FCM token
+  Future<void> _unregisterFcmToken() async {
+    try {
+      final fcmService = FcmService();
+      final token = await StorageService.getCustomerToken();
+      
+      if (token == null || fcmService.fcmToken == null) return;
+      
+      await FcmApiService.unregisterCustomerToken(
+        token: token,
+        fcmToken: fcmService.fcmToken!,
+      );
+      
+      await fcmService.deleteToken();
+    } catch (e) {
+      // Handle silently
     }
   }
 

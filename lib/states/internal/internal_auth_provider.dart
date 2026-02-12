@@ -1,6 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helpdesk_mobile/data/models/user_model.dart';
 import 'package:helpdesk_mobile/data/repository/internal/internal_auth_repository.dart';
+import 'package:helpdesk_mobile/data/services/fcm_service.dart';
+import 'package:helpdesk_mobile/data/services/fcm_api_service.dart';
+import 'package:helpdesk_mobile/data/services/storage_service.dart';
 
 // Repository Provider
 final internalAuthRepositoryProvider = Provider<InternalAuthRepository>((ref) {
@@ -90,6 +93,10 @@ class InternalAuthNotifier extends Notifier<InternalAuthState> {
           user: user,
           errorMessage: null,
         );
+        
+        // Register FCM token after successful login
+        _registerFcmToken();
+        
         return true;
       } else {
         state = state.copyWith(
@@ -133,6 +140,9 @@ class InternalAuthNotifier extends Notifier<InternalAuthState> {
     state = state.copyWith(isLoading: true);
 
     try {
+      // Unregister FCM token before logout
+      await _unregisterFcmToken();
+      
       await _repository.logout();
       
       state = InternalAuthState(
@@ -144,6 +154,45 @@ class InternalAuthNotifier extends Notifier<InternalAuthState> {
         isLoading: false,
         isAuthenticated: false,
       );
+    }
+  }
+  
+  // Register FCM token
+  Future<void> _registerFcmToken() async {
+    try {
+      final fcmService = FcmService();
+      final token = await StorageService.getInternalToken();
+      
+      if (token == null || fcmService.fcmToken == null) return;
+      
+      final deviceInfo = fcmService.getDeviceInfo();
+      await FcmApiService.registerInternalToken(
+        token: token,
+        fcmToken: deviceInfo['fcm_token'],
+        platform: deviceInfo['platform'],
+        appVersion: deviceInfo['app_version'],
+      );
+    } catch (e) {
+      // Handle silently
+    }
+  }
+  
+  // Unregister FCM token
+  Future<void> _unregisterFcmToken() async {
+    try {
+      final fcmService = FcmService();
+      final token = await StorageService.getInternalToken();
+      
+      if (token == null || fcmService.fcmToken == null) return;
+      
+      await FcmApiService.unregisterInternalToken(
+        token: token,
+        fcmToken: fcmService.fcmToken!,
+      );
+      
+      await fcmService.deleteToken();
+    } catch (e) {
+      // Handle silently
     }
   }
 

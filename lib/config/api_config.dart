@@ -29,6 +29,9 @@ class ApiConfig {
   
   static String customerEditReply(String ticketId, int commentId) =>
       '/api/mobile/tickets/$ticketId/reply/$commentId/edit';
+  
+  // Customer FCM Endpoints
+  static const String customerFcmToken = '/api/mobile/fcm/token';
 
   // Internal Endpoints
   static const String internalLogin = '/api/mobile/internal/login';
@@ -52,6 +55,9 @@ class ApiConfig {
   
   static String internalEditReply(String ticketId, int commentId) =>
       '/api/mobile/internal/tickets/$ticketId/reply/$commentId/edit';
+  
+  // Internal FCM Endpoints
+  static const String internalFcmToken = '/api/mobile/internal/fcm/token';
 
   // Headers
   static Map<String, String> headers({String? token}) {

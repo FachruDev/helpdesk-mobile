@@ -1,18 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:helpdesk_mobile/config/app_theme.dart';
 import 'package:helpdesk_mobile/states/customer/customer_auth_provider.dart';
 import 'package:helpdesk_mobile/states/internal/internal_auth_provider.dart';
 import 'package:helpdesk_mobile/ui/customer/login_screen.dart';
 import 'package:helpdesk_mobile/ui/customer/dashboard_screen.dart';
 import 'package:helpdesk_mobile/ui/internal/dashboard_screen.dart';
+import 'package:helpdesk_mobile/data/services/fcm_service.dart';
+import 'package:helpdesk_mobile/data/services/notification_handler.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
   // Load .env file
   await dotenv.load(fileName: '.env');
+  
+  // Initialize Firebase
+  await Firebase.initializeApp();
+  
+  // Initialize FCM Service
+  await FcmService().initialize();
   
   runApp(
     const ProviderScope(
@@ -28,6 +37,11 @@ class MainApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final customerAuthState = ref.watch(customerAuthProvider);
     final internalAuthState = ref.watch(internalAuthProvider);
+
+    // Initialize notification handler
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      NotificationHandler().initialize(context, ref);
+    });
 
     // Determine home screen based on authentication status
     Widget homeScreen = const CustomerLoginScreen();
