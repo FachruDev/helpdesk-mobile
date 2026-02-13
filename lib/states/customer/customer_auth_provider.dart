@@ -79,9 +79,16 @@ class CustomerAuthNotifier extends Notifier<CustomerAuthState> {
     state = state.copyWith(isLoading: true, errorMessage: null);
 
     try {
+      // Get FCM token untuk kirim saat login (v1.3)
+      final fcmService = FcmService();
+      final deviceInfo = fcmService.getDeviceInfo();
+      
       final response = await _repository.login(
         email: email,
         password: password,
+        fcmToken: deviceInfo['fcm_token'],
+        platform: deviceInfo['platform'],
+        appVersion: deviceInfo['app_version'],
       );
 
       if (response.success && response.data != null) {
@@ -94,8 +101,12 @@ class CustomerAuthNotifier extends Notifier<CustomerAuthState> {
           errorMessage: null,
         );
         
-        // Register FCM token after successful login
-        _registerFcmToken();
+        // FCM token sudah di-register saat login (v1.3)
+        // Fallback: register jika belum
+        final fcmRegistered = response.data!['fcm_registered'] as bool? ?? false;
+        if (!fcmRegistered) {
+          _registerFcmToken();
+        }
         
         return true;
       } else {
@@ -136,14 +147,29 @@ class CustomerAuthNotifier extends Notifier<CustomerAuthState> {
   }
 
   // Logout
-  Future<void> logout() async {
+  // Default: logout biasa tanpa remove FCM token dari device
+  // Jika removeDeviceToken = true, akan unregister FCM token dan hapus dari device
+  Future<void> logout({bool removeDeviceToken = false}) async {
     state = state.copyWith(isLoading: true);
 
     try {
-      // Unregister FCM token before logout
-      await _unregisterFcmToken();
-      
-      await _repository.logout();
+      if (removeDeviceToken) {
+        // User pilih "remove this device"
+        final fcmService = FcmService();
+        final fcmToken = fcmService.fcmToken;
+        
+        // Logout dengan unregister FCM token
+        await _repository.logout(
+          fcmToken: fcmToken,
+          removeDeviceToken: true,
+        );
+        
+        // Delete local FCM token
+        await fcmService.deleteToken();
+      } else {
+        // Logout biasa, FCM token tetap ada di device
+        await _repository.logout();
+      }
       
       state = CustomerAuthState(
         isLoading: false,

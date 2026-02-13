@@ -36,10 +36,26 @@ class _CustomerTicketDetailScreenState
   TicketReplyModel? _editingReply;
 
   @override
+  void initState() {
+    super.initState();
+    // Auto-reload when entering the screen
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _refreshData();
+    });
+  }
+
+  @override
   void dispose() {
     _replyController.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  Future<void> _refreshData() async {
+    // Refresh ticket detail
+    ref.refresh(customerTicketDetailProvider(widget.ticketId));
+    // Refresh replies
+    ref.refresh(customerTicketRepliesProvider(widget.ticketId));
   }
 
   Future<void> _pickFiles() async {
@@ -308,26 +324,29 @@ class _CustomerTicketDetailScreenState
     return Column(
       children: [
         Expanded(
-          child: SingleChildScrollView(
-            controller: _scrollController,
-            padding: EdgeInsets.only(
-              left: 16,
-              right: 16,
-              top: 16,
-              bottom: isTicketClosed ? MediaQuery.of(context).padding.bottom + 16 : 16,
-            ),
-            child: Column(
+          child: RefreshIndicator(
+            onRefresh: _refreshData,
+            child: SingleChildScrollView(
+              controller: _scrollController,
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: EdgeInsets.only(
+                left: 16,
+                right: 16,
+                top: 16,
+                bottom: isTicketClosed ? MediaQuery.of(context).padding.bottom + 16 : 16,
+              ),
+              child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 // Ticket Info Card
                 _buildTicketInfoCard(ticket),
-                const SizedBox(height: 16),
+                const SizedBox(height: 8),
 
                 // Ticket Attachments
                 if (ticket.attachments != null && ticket.attachments!.isNotEmpty)
                   _buildAttachmentsSection(ticket.attachments!),
 
-                const SizedBox(height: 16),
+                const SizedBox(height: 8),
 
                 // Replies Section
                 _buildRepliesSection(repliesAsync),
@@ -339,6 +358,7 @@ class _CustomerTicketDetailScreenState
                 ],
               ],
             ),
+          ),
           ),
         ),
 

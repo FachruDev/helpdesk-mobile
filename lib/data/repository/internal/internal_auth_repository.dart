@@ -7,20 +7,35 @@ import 'package:helpdesk_mobile/data/services/storage_service.dart';
 
 class InternalAuthRepository {
   /// Login internal/employee
+  /// Support FCM token registration saat login (v1.3)
   Future<ApiResponse<Map<String, dynamic>>> login({
     required String email,
     required String password,
+    String? fcmToken,
+    String? platform,
+    String? deviceId,
+    String? appVersion,
   }) async {
     try {
       final url = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.internalLogin}');
       
+      final body = {
+        'email': email,
+        'password': password,
+      };
+      
+      // Add FCM token if provided (v1.3 feature)
+      if (fcmToken != null) {
+        body['fcm_token'] = fcmToken;
+        if (platform != null) body['platform'] = platform;
+        if (deviceId != null) body['device_id'] = deviceId;
+        if (appVersion != null) body['app_version'] = appVersion;
+      }
+      
       final response = await http.post(
         url,
         headers: ApiConfig.headers(),
-        body: jsonEncode({
-          'email': email,
-          'password': password,
-        }),
+        body: jsonEncode(body),
       );
 
       final Map<String, dynamic> responseData = jsonDecode(response.body);
@@ -28,6 +43,7 @@ class InternalAuthRepository {
       if (response.statusCode == 200 && responseData['success'] == true) {
         final token = responseData['token'] ?? responseData['data']?['token'];
         final userData = responseData['user'] ?? responseData['data']?['user'];
+        final fcmRegistered = responseData['data']?['fcm_registered'] ?? responseData['fcm_registered'] ?? false;
 
         if (token != null) {
           // Save token to secure storage
@@ -41,6 +57,7 @@ class InternalAuthRepository {
           return ApiResponse.success({
             'token': token,
             'user': userData != null ? UserModel.fromJson(userData) : null,
+            'fcm_registered': fcmRegistered,
           }, message: responseData['message'] ?? 'Login successful');
         }
       }
@@ -95,17 +112,32 @@ class InternalAuthRepository {
   }
 
   /// Logout internal
-  Future<ApiResponse<void>> logout() async {
+  /// Support FCM token unregister saat logout (v1.3)
+  /// Jika removeDeviceToken = true, kirim fcm_token dan remove_device_token flag
+  /// Jika false (default), logout biasa tanpa unregister FCM token
+  Future<ApiResponse<void>> logout({
+    String? fcmToken,
+    bool removeDeviceToken = false,
+  }) async {
     try {
       final token = await StorageService.getInternalToken();
       
       if (token != null) {
         final url = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.internalLogout}');
         
+        final body = <String, dynamic>{};
+        
+        // Hanya kirim fcm_token jika user pilih remove device
+        if (removeDeviceToken && fcmToken != null) {
+          body['fcm_token'] = fcmToken;
+          body['remove_device_token'] = true;
+        }
+        
         // Try to logout from server
         await http.post(
           url,
           headers: ApiConfig.headers(token: token),
+          body: body.isNotEmpty ? jsonEncode(body) : null,
         );
       }
 
