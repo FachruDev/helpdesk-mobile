@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:helpdesk_mobile/config/app_theme.dart';
 import 'package:helpdesk_mobile/states/customer/customer_auth_provider.dart';
 import 'package:helpdesk_mobile/states/internal/internal_auth_provider.dart';
@@ -11,16 +12,32 @@ import 'package:helpdesk_mobile/ui/internal/dashboard_screen.dart';
 import 'package:helpdesk_mobile/data/services/fcm_service.dart';
 import 'package:helpdesk_mobile/data/services/notification_handler.dart';
 
+// Top-level background message handler
+// HARUS di-define di top-level (tidak boleh di dalam class)
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  // Initialize Firebase jika belum (untuk background/terminated state)
+  await Firebase.initializeApp();
+  
+  print('[Background] Message received: ${message.messageId}');
+  print('[Background] Data: ${message.data}');
+  print('[Background] Notification: ${message.notification?.title}');
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
   // Load .env file
   await dotenv.load(fileName: '.env');
   
-  // Initialize Firebase
+  // Initialize Firebase PERTAMA
   await Firebase.initializeApp();
   
-  // Initialize FCM Service
+  // PENTING: Register background message handler SEBELUM initialize FCM Service
+  // Handler ini akan dipanggil saat app di-close/terminated dan ada notifikasi masuk
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+  
+  // Initialize FCM Service (request permission, get token, setup foreground handler)
   await FcmService().initialize();
   
   runApp(

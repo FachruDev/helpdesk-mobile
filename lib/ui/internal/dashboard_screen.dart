@@ -256,8 +256,37 @@ class _InternalDashboardScreenState
                       ),
                     ),
 
+                  // Error State
+                  if (ticketState.errorMessage != null)
+                    SliverToBoxAdapter(
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppColors.error.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.error_outline, size: 20, color: AppColors.error),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                ticketState.errorMessage!,
+                                style: TextStyle(fontSize: 13, color: AppColors.error),
+                              ),
+                            ),
+                            TextButton(
+                              onPressed: _refreshTickets,
+                              child: const Text('Retry'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
                   // Tickets List
-                  ticketState.tickets.isEmpty
+                  ticketState.tickets.isEmpty && ticketState.errorMessage == null
                       ? SliverFillRemaining(child: _buildEmptyState())
                       : SliverPadding(
                           padding: EdgeInsets.only(

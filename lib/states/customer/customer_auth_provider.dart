@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helpdesk_mobile/data/models/user_model.dart';
 import 'package:helpdesk_mobile/data/repository/customer/customer_auth_repository.dart';
@@ -42,6 +43,7 @@ class CustomerAuthState {
 // Auth Notifier
 class CustomerAuthNotifier extends Notifier<CustomerAuthState> {
   CustomerAuthRepository get _repository => ref.read(customerAuthRepositoryProvider);
+  bool _isLoginInProgress = false;
 
   @override
   CustomerAuthState build() {
@@ -53,20 +55,26 @@ class CustomerAuthNotifier extends Notifier<CustomerAuthState> {
   Future<void> _checkAuthStatus() async {
     final isAuth = await _repository.isAuthenticated();
     if (isAuth) {
-      final user = await _repository.getStoredUser();
-      // Validate token by calling me endpoint
+      // Jika login sedang berlangsung, jangan interfere
+      if (_isLoginInProgress || state.isAuthenticated) return;
+      
+      // Coba validasi token dengan me endpoint
       final response = await _repository.me();
+      
+      // Cek lagi sebelum update state (login mungkin sudah selesai)
+      if (_isLoginInProgress || state.isAuthenticated) return;
+      
       if (response.success && response.data != null) {
         state = state.copyWith(
           isAuthenticated: true,
           user: response.data,
         );
       } else {
-        // Token invalid, logout
+        // Token invalid, clear session TANPA affect state yang mungkin sudah diset login
         await _repository.logout();
-        state = CustomerAuthState(
-          isAuthenticated: false,
-        );
+        if (!_isLoginInProgress && !state.isAuthenticated) {
+          state = CustomerAuthState(isAuthenticated: false);
+        }
       }
     }
   }
@@ -77,11 +85,18 @@ class CustomerAuthNotifier extends Notifier<CustomerAuthState> {
     required String password,
   }) async {
     state = state.copyWith(isLoading: true, errorMessage: null);
+    _isLoginInProgress = true;
 
     try {
-      // Get FCM token untuk kirim saat login (v1.3)
+      // PENTING: Request FRESH token dari Firebase sebelum login
+      // Jangan pakai cache lama yang bisa sudah UNREGISTERED
       final fcmService = FcmService();
+      await fcmService.getOrRefreshToken();
       final deviceInfo = fcmService.getDeviceInfo();
+      
+      if (kDebugMode) {
+        print('[Customer Login] FCM token: ${deviceInfo['fcm_token']}');
+      }
       
       final response = await _repository.login(
         email: email,
@@ -110,6 +125,7 @@ class CustomerAuthNotifier extends Notifier<CustomerAuthState> {
         
         return true;
       } else {
+        _isLoginInProgress = false;
         state = state.copyWith(
           isLoading: false,
           isAuthenticated: false,
@@ -118,6 +134,7 @@ class CustomerAuthNotifier extends Notifier<CustomerAuthState> {
         return false;
       }
     } catch (e) {
+      _isLoginInProgress = false;
       state = state.copyWith(
         isLoading: false,
         isAuthenticated: false,
@@ -138,11 +155,22 @@ class CustomerAuthNotifier extends Notifier<CustomerAuthState> {
           isAuthenticated: true,
         );
       } else {
-        // Token invalid, logout
-        await logout();
+        // JANGAN langsung logout - mungkin hanya network error sementara
+        // Hanya logout jika benar-benar 401 unauthorized
+        if (response.statusCode == 401) {
+          await logout();
+        } else {
+          if (kDebugMode) {
+            print('[Customer] fetchProfile failed but not 401, keeping session');
+            print('[Customer] Status: ${response.statusCode}, Message: ${response.message}');
+          }
+        }
       }
     } catch (e) {
-      // Handle error silently or update state if needed
+      if (kDebugMode) {
+        print('[Customer] fetchProfile error: $e');
+      }
+      // Network error, jangan logout
     }
   }
 
@@ -150,6 +178,7 @@ class CustomerAuthNotifier extends Notifier<CustomerAuthState> {
   // Default: logout biasa tanpa remove FCM token dari device
   // Jika removeDeviceToken = true, akan unregister FCM token dan hapus dari device
   Future<void> logout({bool removeDeviceToken = false}) async {
+    _isLoginInProgress = false;
     state = state.copyWith(isLoading: true);
 
     try {
@@ -183,7 +212,7 @@ class CustomerAuthNotifier extends Notifier<CustomerAuthState> {
     }
   }
   
-  // Register FCM token
+  // Register FCM token (fallback jika login tidak register)
   Future<void> _registerFcmToken() async {
     try {
       final fcmService = FcmService();
@@ -198,25 +227,6 @@ class CustomerAuthNotifier extends Notifier<CustomerAuthState> {
         platform: deviceInfo['platform'],
         appVersion: deviceInfo['app_version'],
       );
-    } catch (e) {
-      // Handle silently
-    }
-  }
-  
-  // Unregister FCM token
-  Future<void> _unregisterFcmToken() async {
-    try {
-      final fcmService = FcmService();
-      final token = await StorageService.getCustomerToken();
-      
-      if (token == null || fcmService.fcmToken == null) return;
-      
-      await FcmApiService.unregisterCustomerToken(
-        token: token,
-        fcmToken: fcmService.fcmToken!,
-      );
-      
-      await fcmService.deleteToken();
     } catch (e) {
       // Handle silently
     }

@@ -31,11 +31,13 @@ class _CustomerDashboardScreenState extends ConsumerState<CustomerDashboardScree
     // Load tickets on init and validate token
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await ref.read(customerAuthProvider.notifier).fetchProfile();
-      if (ref.read(customerAuthProvider).isAuthenticated) {
-        ref.read(customerTicketProvider.notifier).fetchTickets(refresh: true);
-      } else {
-        // Token invalid, redirect to login
-        if (mounted) {
+      if (mounted) {
+        // Selalu load tickets jika masih di dashboard
+        // fetchProfile sekarang hanya logout jika 401
+        if (ref.read(customerAuthProvider).isAuthenticated) {
+          ref.read(customerTicketProvider.notifier).fetchTickets(refresh: true);
+        } else {
+          // Benar-benar unauthorized (401), redirect ke login
           Navigator.of(context).pushAndRemoveUntil(
             MaterialPageRoute(builder: (_) => const CustomerLoginScreen()),
             (route) => false,
@@ -231,8 +233,37 @@ class _CustomerDashboardScreenState extends ConsumerState<CustomerDashboardScree
                       ),
                     ),
                   
+                  // Error State
+                  if (ticketState.errorMessage != null)
+                    SliverToBoxAdapter(
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppColors.error.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.error_outline, size: 20, color: AppColors.error),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                ticketState.errorMessage!,
+                                style: TextStyle(fontSize: 13, color: AppColors.error),
+                              ),
+                            ),
+                            TextButton(
+                              onPressed: _refreshTickets,
+                              child: const Text('Retry'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
                   // Tickets List
-                  ticketState.tickets.isEmpty
+                  ticketState.tickets.isEmpty && ticketState.errorMessage == null
                       ? SliverFillRemaining(
                           child: _buildEmptyState(),
                         )

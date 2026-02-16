@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:helpdesk_mobile/config/api_config.dart';
 import 'package:helpdesk_mobile/data/models/api_response.dart';
@@ -40,9 +41,27 @@ class InternalAuthRepository {
 
       final Map<String, dynamic> responseData = jsonDecode(response.body);
 
+      if (kDebugMode) {
+        print('[Internal Login] Status: ${response.statusCode}');
+        print('[Internal Login] Response keys: ${responseData.keys.toList()}');
+        print('[Internal Login] success: ${responseData['success']}');
+        print('[Internal Login] has token: ${responseData.containsKey('token')}');
+        print('[Internal Login] has data: ${responseData.containsKey('data')}');
+        print('[Internal Login] has user: ${responseData.containsKey('user')}');
+      }
+
       if (response.statusCode == 200 && responseData['success'] == true) {
         final token = responseData['token'] ?? responseData['data']?['token'];
-        final userData = responseData['user'] ?? responseData['data']?['user'];
+        // Parse user data: coba 'user' root, 'data.user', atau 'data' langsung
+        var userData = responseData['user'] ?? responseData['data']?['user'];
+        // Jika data ada tapi bukan nested user, data mungkin IS the user object
+        if (userData == null && responseData['data'] is Map) {
+          final data = responseData['data'] as Map<String, dynamic>;
+          // Jika data punya field name/email, itu adalah user object langsung
+          if (data.containsKey('name') || data.containsKey('email') || data.containsKey('id')) {
+            userData = data;
+          }
+        }
         final fcmRegistered = responseData['data']?['fcm_registered'] ?? responseData['fcm_registered'] ?? false;
 
         if (token != null) {

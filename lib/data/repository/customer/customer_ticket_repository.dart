@@ -210,21 +210,36 @@ class CustomerTicketRepository {
 
       _checkUnauthorized(response.statusCode);
 
-      if (response.statusCode == 200) {
-        final ticketsData =
-            responseData['data'] ?? responseData['tickets'] ?? [];
+      // Debug: Print raw response structure
+      print('\n===== CUSTOMER TICKETS API =====');
+      print('Status: ${response.statusCode}');
+      print('Response keys: ${responseData.keys.toList()}');
+      final rawData = responseData['data'];
+      print('data type: ${rawData.runtimeType}');
 
-        // Debug: Print API response
-        print('\n===== TICKETS API RESPONSE =====');
-        print('Success: ${responseData['success']}');
-        print('Tickets count: ${(ticketsData as List).length}');
-        if ((ticketsData).isNotEmpty) {
+      if (response.statusCode == 200) {
+        // Handle multiple response formats:
+        // 1. data = [...tickets...]  (flat list)
+        // 2. data = { data: [...tickets...], current_page: 1, ... }  (Laravel paginated)
+        // 3. tickets = [...tickets...]  (alternative key)
+        List ticketsData;
+        if (rawData is List) {
+          ticketsData = rawData;
+        } else if (rawData is Map) {
+          // Paginated response - actual items are in data.data
+          ticketsData = rawData['data'] as List? ?? [];
+        } else {
+          ticketsData = responseData['tickets'] as List? ?? [];
+        }
+
+        print('Tickets count: ${ticketsData.length}');
+        if (ticketsData.isNotEmpty) {
           print('First ticket: ${jsonEncode(ticketsData[0])}');
         }
         print('================================\n');
 
         final tickets = ticketsData
-            .map((e) => TicketModel.fromJson(e))
+            .map((e) => TicketModel.fromJson(e as Map<String, dynamic>))
             .toList();
 
         return ApiResponse.success(tickets);

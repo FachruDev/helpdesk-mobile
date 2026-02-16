@@ -159,12 +159,32 @@ class InternalTicketRepository {
 
       final Map<String, dynamic> responseData = jsonDecode(response.body);
 
-      if (response.statusCode == 200) {
-        final ticketsData =
-            responseData['data'] ?? responseData['tickets'] ?? [];
+      // Debug: Print raw response structure
+      print('\n===== INTERNAL TICKETS API =====');
+      print('Status: ${response.statusCode}');
+      print('Response keys: ${responseData.keys.toList()}');
+      final rawData = responseData['data'];
+      print('data type: ${rawData.runtimeType}');
 
-        final tickets = (ticketsData as List)
-            .map((e) => TicketModel.fromJson(e))
+      if (response.statusCode == 200) {
+        // Handle multiple response formats:
+        // 1. data = [...tickets...]  (flat list)
+        // 2. data = { data: [...tickets...], current_page: 1, ... }  (Laravel paginated)
+        // 3. tickets = [...tickets...]  (alternative key)
+        List ticketsData;
+        if (rawData is List) {
+          ticketsData = rawData;
+        } else if (rawData is Map) {
+          ticketsData = rawData['data'] as List? ?? [];
+        } else {
+          ticketsData = responseData['tickets'] as List? ?? [];
+        }
+
+        print('Tickets count: ${ticketsData.length}');
+        print('================================\n');
+
+        final tickets = ticketsData
+            .map((e) => TicketModel.fromJson(e as Map<String, dynamic>))
             .toList();
 
         return ApiResponse.success(tickets);
