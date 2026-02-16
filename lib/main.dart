@@ -76,6 +76,7 @@ class MainApp extends ConsumerWidget {
       title: 'Helpdesk Mobile',
       theme: AppTheme.lightTheme,
       debugShowCheckedModeBanner: false,
+      navigatorKey: NotificationHandler.navigatorKey,
       home: homeScreen,
     );
   }

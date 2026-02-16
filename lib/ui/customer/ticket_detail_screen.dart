@@ -34,6 +34,7 @@ class _CustomerTicketDetailScreenState
   String? _selectedStatus; // For status dropdown
   bool _isEditMode = false;
   TicketReplyModel? _editingReply;
+  int _visibleRepliesCount = 5; // Frontend pagination: show N replies at a time
 
   @override
   void initState() {
@@ -52,6 +53,10 @@ class _CustomerTicketDetailScreenState
   }
 
   Future<void> _refreshData() async {
+    // Reset pagination on refresh
+    setState(() {
+      _visibleRepliesCount = 5;
+    });
     // Refresh ticket detail
     ref.refresh(customerTicketDetailProvider(widget.ticketId));
     // Refresh replies
@@ -120,6 +125,50 @@ class _CustomerTicketDetailScreenState
         );
       }
     }
+  }
+
+  void _showAttachmentOptions() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 36,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.camera_alt, color: AppColors.primary),
+                title: const Text('Take Photo'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _takePhoto();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.attach_file, color: AppColors.info),
+                title: const Text('Upload File'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickFiles();
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   void _removeFile(int index) {
@@ -548,13 +597,17 @@ class _CustomerTicketDetailScreenState
           );
         }
 
+        final totalReplies = replies.length;
+        final visibleReplies = replies.take(_visibleRepliesCount).toList();
+        final hasMore = _visibleRepliesCount < totalReplies;
+
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
               padding: const EdgeInsets.only(left: 4, bottom: 12),
               child: Text(
-                'Replies (${replies.length})',
+                'Replies ($totalReplies)',
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
@@ -562,7 +615,25 @@ class _CustomerTicketDetailScreenState
                 ),
               ),
             ),
-            ...replies.map((reply) => _buildReplyCard(reply)),
+            ...visibleReplies.map((reply) => _buildReplyCard(reply)),
+            if (hasMore)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Center(
+                  child: TextButton.icon(
+                    onPressed: () {
+                      setState(() {
+                        _visibleRepliesCount += 10;
+                      });
+                    },
+                    icon: const Icon(Icons.expand_more, size: 20),
+                    label: Text(
+                      'Load more (${totalReplies - visibleReplies.length} remaining)',
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                  ),
+                ),
+              ),
           ],
         );
       },
@@ -960,22 +1031,13 @@ class _CustomerTicketDetailScreenState
           // Input Row
           Row(
             children: [
-              // Camera button (disabled in edit mode)
-              IconButton(
-                icon: const Icon(Icons.camera_alt),
-                onPressed: _isEditMode 
-                    ? null 
-                    : (_selectedFiles.length < 5 ? _takePhoto : null),
-                color: _isEditMode ? AppColors.textHint : AppColors.primary,
-              ),
-              // Attach button (disabled in edit mode)
-              IconButton(
-                icon: const Icon(Icons.attach_file),
-                onPressed: _isEditMode 
-                    ? null 
-                    : (_selectedFiles.length < 5 ? _pickFiles : null),
-                color: _isEditMode ? AppColors.textHint : AppColors.info,
-              ),
+              // Attachment button (+ icon, opens bottom sheet)
+              if (!_isEditMode)
+                IconButton(
+                  icon: const Icon(Icons.add_circle_outline),
+                  onPressed: _selectedFiles.length < 5 ? _showAttachmentOptions : null,
+                  color: AppColors.primary,
+                ),
               Expanded(
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(

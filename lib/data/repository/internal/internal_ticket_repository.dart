@@ -473,12 +473,21 @@ class InternalTicketRepository {
       final Map<String, dynamic> responseData = jsonDecode(response.body);
 
       if (response.statusCode == 200) {
-        final repliesData = responseData['data'] ?? [];
+        final rawData = responseData['data'];
+
+        // Handle both flat list and paginated (data.data) formats
+        List repliesData;
+        if (rawData is List) {
+          repliesData = rawData;
+        } else if (rawData is Map) {
+          repliesData = rawData['data'] as List? ?? [];
+        } else {
+          repliesData = responseData['replies'] as List? ?? [];
+        }
 
         final replies = repliesData
-            .map((e) => TicketReplyModel.fromJson(e))
-            .toList()
-            .cast<TicketReplyModel>();
+            .map((e) => TicketReplyModel.fromJson(e as Map<String, dynamic>))
+            .toList();
 
         return ApiResponse.success(replies);
       }

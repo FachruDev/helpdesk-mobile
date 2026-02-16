@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helpdesk_mobile/data/services/fcm_service.dart';
+import 'package:helpdesk_mobile/states/customer/customer_auth_provider.dart';
+import 'package:helpdesk_mobile/states/internal/internal_auth_provider.dart';
+import 'package:helpdesk_mobile/ui/customer/ticket_detail_screen.dart';
+import 'package:helpdesk_mobile/ui/internal/ticket_detail_screen.dart';
 
 /// Notification Handler untuk routing dan UI handling
 /// Compatible dengan FCM HTTP v1 API payload structure
@@ -9,21 +13,32 @@ class NotificationHandler {
   factory NotificationHandler() => _instance;
   NotificationHandler._internal();
 
-  BuildContext? _context;
+  // Global navigator key agar bisa navigate dari mana saja
+  static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
   WidgetRef? _ref;
   
   // Tracking untuk avoid duplicate routing
   final Set<String> _processedNotifications = {};
   DateTime? _lastNavigationTime;
 
-  /// Initialize notification handler dengan context dan ref
+  // Pending notification data (untuk terminated state, navigate setelah app ready)
+  Map<String, dynamic>? _pendingNotification;
+
+  /// Initialize notification handler dengan ref
   void initialize(BuildContext context, WidgetRef ref) {
-    _context = context;
     _ref = ref;
 
     // Setup callback untuk handle notification tap
     final fcmService = FcmService();
     fcmService.onNotificationTap = _handleNotificationTap;
+    
+    // Process pending notification jika ada (dari terminated state)
+    if (_pendingNotification != null) {
+      final pending = _pendingNotification!;
+      _pendingNotification = null;
+      Future.microtask(() => _handleNotificationTap(pending));
+    }
     
     debugPrint('NotificationHandler initialized');
   }
@@ -31,20 +46,23 @@ class NotificationHandler {
   /// Handle notification tap dan routing
   /// Support FCM v1 payload structure dengan data fields
   void _handleNotificationTap(Map<String, dynamic> data) {
-    if (_context == null || !_context!.mounted) return;
+    final nav = navigatorKey.currentState;
+    if (nav == null) {
+      // App belum ready, simpan untuk diproses nanti
+      _pendingNotification = data;
+      debugPrint('Navigator not ready, storing pending notification');
+      return;
+    }
 
     final type = data['type'] as String?;
     final ticketId = data['ticket_id'] as String?;
-    final deepLink = data['deep_link'] as String?;
     final sentAt = data['sent_at'] as String?;
 
     debugPrint('Handling notification tap:');
     debugPrint('  Type: $type');
     debugPrint('  Ticket ID: $ticketId');
-    debugPrint('  Deep Link: $deepLink');
-    debugPrint('  Sent At: $sentAt');
 
-    if (ticketId == null) {
+    if (ticketId == null || ticketId.isEmpty) {
       debugPrint('No ticket ID in notification data, ignoring');
       return;
     }
@@ -80,66 +98,57 @@ class NotificationHandler {
       case 'ticket.status_changed':
       case 'ticket.comment_added':
       case 'ticket.reply_received':
-        _navigateToTicketDetail(ticketId, type: type);
+        _navigateToTicketDetail(ticketId);
         break;
       default:
         debugPrint('Unknown notification type: $type');
-        // Still try to navigate to ticket if we have ticketId
         if (ticketId.isNotEmpty) {
           _navigateToTicketDetail(ticketId);
         }
     }
   }
 
-  /// Navigate ke ticket detail screen
-  /// TODO: Implement proper navigation based on user type (customer/internal)
-  void _navigateToTicketDetail(String ticketId, {String? type}) {
-    if (_context == null || !_context!.mounted) return;
+  /// Navigate ke ticket detail screen berdasarkan user type
+  void _navigateToTicketDetail(String ticketId) {
+    final nav = navigatorKey.currentState;
+    if (nav == null) return;
 
-    // Import screens dinamis untuk menghindari circular dependency
-    // Perlu di-adjust sesuai dengan screen yang ada
-    
-    debugPrint('Navigating to ticket detail: $ticketId (type: $type)');
-    
-    // TODO: Implement proper navigation
-    // Contoh routing ke ticket detail:
-    // 
-    // // Check auth state untuk tau user type
-    // final customerAuth = _ref?.read(customerAuthProvider);
-    // final internalAuth = _ref?.read(internalAuthProvider);
-    // 
-    // if (internalAuth?.isAuthenticated ?? false) {
-    //   Navigator.push(
-    //     _context!,
-    //     MaterialPageRoute(
-    //       builder: (context) => InternalTicketDetailScreen(ticketId: ticketId),
-    //     ),
-    //   );
-    // } else if (customerAuth?.isAuthenticated ?? false) {
-    //   Navigator.push(
-    //     _context!,
-    //     MaterialPageRoute(
-    //       builder: (context) => CustomerTicketDetailScreen(ticketId: ticketId),
-    //     ),
-    //   );
-    // }
-    
-    // Temporary feedback
-    showInAppNotification(
-      title: 'Notification Tapped',
-      body: 'Opening ticket $ticketId...',
-    );
+    debugPrint('Navigating to ticket detail: $ticketId');
+
+    // Tentukan user type dari auth state
+    final isInternal = _ref?.read(internalAuthProvider).isAuthenticated ?? false;
+    final isCustomer = _ref?.read(customerAuthProvider).isAuthenticated ?? false;
+
+    if (isInternal) {
+      nav.push(
+        MaterialPageRoute(
+          builder: (_) => InternalTicketDetailScreen(ticketId: ticketId),
+        ),
+      );
+    } else if (isCustomer) {
+      nav.push(
+        MaterialPageRoute(
+          builder: (_) => CustomerTicketDetailScreen(ticketId: ticketId),
+        ),
+      );
+    } else {
+      debugPrint('No authenticated user, cannot navigate to ticket detail');
+    }
   }
 
-  /// Show in-app notification (optional, untuk foreground)
+  /// Show in-app notification (untuk foreground)
+  /// Dengan aksi "Lihat" untuk langsung navigate ke ticket
   void showInAppNotification({
     required String title,
     required String body,
     VoidCallback? onTap,
   }) {
-    if (_context == null || !_context!.mounted) return;
+    final nav = navigatorKey.currentState;
+    if (nav == null) return;
 
-    ScaffoldMessenger.of(_context!).showSnackBar(
+    final context = nav.context;
+
+    ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
