@@ -62,6 +62,9 @@ class _InternalTicketDetailScreenState
   bool _isReplying = false;
   String? _selectedStatus; // For status dropdown
   int _visibleRepliesCount = 5; // Frontend pagination: show N replies at a time
+  String? _selectedHoldReason;
+  final _holdNoteController = TextEditingController();
+  final _resolutionTargetController = TextEditingController();
 
   @override
   void initState() {
@@ -76,6 +79,8 @@ class _InternalTicketDetailScreenState
   void dispose() {
     _replyController.dispose();
     _scrollController.dispose();
+    _holdNoteController.dispose();
+    _resolutionTargetController.dispose();
     super.dispose();
   }
   
@@ -245,14 +250,58 @@ class _InternalTicketDetailScreenState
       return;
     }
 
+    // Validate On-Hold specific fields
+    if (_selectedStatus == 'On-Hold') {
+      if (_selectedHoldReason == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+                'Please select a reason for putting this ticket on hold'),
+            backgroundColor: AppColors.warning,
+          ),
+        );
+        return;
+      }
+      final availableStatuses =
+          ref.read(internalAvailableStatusesProvider(widget.ticketId)).asData?.value;
+      HoldReasonOption? selectedOption;
+      for (final option in availableStatuses?.holdReasonOptions ?? []) {
+        if (option.value == _selectedHoldReason) {
+          selectedOption = option;
+          break;
+        }
+      }
+      if (selectedOption?.requiresNote == true &&
+          _holdNoteController.text.trim().isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please enter a note for the hold reason'),
+            backgroundColor: AppColors.warning,
+          ),
+        );
+        return;
+      }
+    }
+
     setState(() => _isReplying = true);
 
     final repository = ref.read(internalReplyTicketProvider);
+
+    int? resolutionTargetDays;
+    final rtText = _resolutionTargetController.text.trim();
+    if (rtText.isNotEmpty) resolutionTargetDays = int.tryParse(rtText);
 
     final response = await repository.replyTicket(
       ticketId: widget.ticketId,
       comment: _replyController.text.trim(),
       status: _selectedStatus,
+      slaPauseReasonCode:
+          _selectedStatus == 'On-Hold' ? _selectedHoldReason : null,
+      slaPauseReasonNote:
+          _selectedStatus == 'On-Hold' && _holdNoteController.text.isNotEmpty
+              ? _holdNoteController.text.trim()
+              : null,
+      resolutionTargetWorkingDays: resolutionTargetDays,
       files: _selectedFiles.isNotEmpty ? _selectedFiles : null,
     );
 
@@ -264,6 +313,9 @@ class _InternalTicketDetailScreenState
           _replyController.clear();
           _selectedFiles = [];
           _selectedStatus = null;
+          _selectedHoldReason = null;
+          _holdNoteController.clear();
+          _resolutionTargetController.clear();
         });
 
         // Refresh ticket detail and replies to show new reply
@@ -963,8 +1015,96 @@ class _InternalTicketDetailScreenState
               onChanged: (value) {
                 setState(() {
                   _selectedStatus = value;
+                  if (value != 'On-Hold') {
+                    _selectedHoldReason = null;
+                    _holdNoteController.clear();
+                  }
                 });
               },
+            ),
+            const SizedBox(height: 8),
+          ],
+
+          // On-Hold reason dropdown
+          if (_selectedStatus == 'On-Hold' &&
+              availableStatuses != null &&
+              availableStatuses.holdReasonOptions.isNotEmpty) ...[
+            DropdownButtonFormField<String>(
+              value: _selectedHoldReason,
+              decoration: InputDecoration(
+                labelText: 'Hold Reason *',
+                prefixIcon: const Icon(Icons.pause_circle_outline, size: 20),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                filled: true,
+                fillColor: AppColors.background,
+              ),
+              items: availableStatuses.holdReasonOptions.map((option) {
+                return DropdownMenuItem(
+                  value: option.value,
+                  child: Text(option.label),
+                );
+              }).toList(),
+              onChanged: (value) {
+                setState(() {
+                  _selectedHoldReason = value;
+                  _holdNoteController.clear();
+                });
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+
+          // Hold note (only when selected reason requires it)
+          if (_selectedStatus == 'On-Hold' &&
+              _selectedHoldReason != null &&
+              availableStatuses != null &&
+              availableStatuses.holdReasonOptions
+                  .any((o) => o.value == _selectedHoldReason && o.requiresNote)) ...[
+            TextField(
+              controller: _holdNoteController,
+              maxLines: 2,
+              decoration: InputDecoration(
+                labelText: 'Hold Note *',
+                hintText: 'Explain the reason in detail...',
+                prefixIcon: const Icon(Icons.note_outlined, size: 20),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                filled: true,
+                fillColor: AppColors.background,
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+
+          // Resolution target working days (optional, shown when permission allows)
+          if (availableStatuses?.canEditResolutionTarget == true) ...[
+            TextField(
+              controller: _resolutionTargetController,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                labelText: 'Resolution Target (working days, optional)',
+                prefixIcon: const Icon(Icons.calendar_today_outlined, size: 20),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                filled: true,
+                fillColor: AppColors.background,
+              ),
             ),
             const SizedBox(height: 8),
           ],

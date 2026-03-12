@@ -382,11 +382,19 @@ class InternalTicketRepository {
     }
   }
 
-  /// Reply to ticket
+  /// Reply to ticket.
+  ///
+  /// [slaPauseReasonCode] — required when [status] is `On-Hold`.
+  /// [slaPauseReasonNote] — required when reason code is `other`.
+  /// [resolutionTargetWorkingDays] — optional; only sent when the user has
+  ///   `can_edit_resolution_target_working_days` permission.
   Future<ApiResponse<void>> replyTicket({
     required String ticketId,
     required String comment,
     String? status,
+    String? slaPauseReasonCode,
+    String? slaPauseReasonNote,
+    int? resolutionTargetWorkingDays,
     List<File>? files,
   }) async {
     try {
@@ -400,8 +408,17 @@ class InternalTicketRepository {
       // Decide between JSON or multipart
       if (files == null || files.isEmpty) {
         // JSON request
-        final body = {'comment': comment};
+        final Map<String, dynamic> body = {'comment': comment};
         if (status != null) body['status'] = status;
+        if (slaPauseReasonCode != null) {
+          body['sla_pause_reason_code'] = slaPauseReasonCode;
+        }
+        if (slaPauseReasonNote != null) {
+          body['sla_pause_reason_note'] = slaPauseReasonNote;
+        }
+        if (resolutionTargetWorkingDays != null) {
+          body['resolution_target_working_days'] = resolutionTargetWorkingDays;
+        }
 
         final response = await http.post(
           url,
@@ -427,6 +444,16 @@ class InternalTicketRepository {
 
         request.fields['comment'] = comment;
         if (status != null) request.fields['status'] = status;
+        if (slaPauseReasonCode != null) {
+          request.fields['sla_pause_reason_code'] = slaPauseReasonCode;
+        }
+        if (slaPauseReasonNote != null) {
+          request.fields['sla_pause_reason_note'] = slaPauseReasonNote;
+        }
+        if (resolutionTargetWorkingDays != null) {
+          request.fields['resolution_target_working_days'] =
+              resolutionTargetWorkingDays.toString();
+        }
 
         // Add files
         for (var file in files) {

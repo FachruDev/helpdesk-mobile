@@ -58,9 +58,9 @@ class _CustomerTicketDetailScreenState
       _visibleRepliesCount = 5;
     });
     // Refresh ticket detail
-    ref.refresh(customerTicketDetailProvider(widget.ticketId));
+    ref.invalidate(customerTicketDetailProvider(widget.ticketId));
     // Refresh replies
-    ref.refresh(customerTicketRepliesProvider(widget.ticketId));
+    ref.invalidate(customerTicketRepliesProvider(widget.ticketId));
   }
 
   Future<void> _pickFiles() async {
