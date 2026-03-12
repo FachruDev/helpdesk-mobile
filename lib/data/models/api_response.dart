@@ -1,9 +1,33 @@
+class PaginationMeta {
+  final int currentPage;
+  final int lastPage;
+  final int perPage;
+  final int total;
+
+  PaginationMeta({
+    required this.currentPage,
+    required this.lastPage,
+    required this.perPage,
+    required this.total,
+  });
+
+  factory PaginationMeta.fromJson(Map<String, dynamic> json) {
+    return PaginationMeta(
+      currentPage: (json['current_page'] as num?)?.toInt() ?? 1,
+      lastPage: (json['last_page'] as num?)?.toInt() ?? 1,
+      perPage: (json['per_page'] as num?)?.toInt() ?? 20,
+      total: (json['total'] as num?)?.toInt() ?? 0,
+    );
+  }
+}
+
 class ApiResponse<T> {
   final bool success;
   final T? data;
   final String? message;
   final int? statusCode;
   final Map<String, dynamic>? errors;
+  final PaginationMeta? meta;
 
   ApiResponse({
     required this.success,
@@ -11,14 +35,16 @@ class ApiResponse<T> {
     this.message,
     this.statusCode,
     this.errors,
+    this.meta,
   });
 
-  factory ApiResponse.success(T data, {String? message}) {
+  factory ApiResponse.success(T data, {String? message, PaginationMeta? meta}) {
     return ApiResponse(
       success: true,
       data: data,
       message: message,
       statusCode: 200,
+      meta: meta,
     );
   }
 

@@ -18,6 +18,7 @@ class InternalTicketState {
   final String? errorMessage;
   final bool hasMore;
   final int currentPage;
+  final int lastPage;
 
   InternalTicketState({
     this.tickets = const [],
@@ -26,6 +27,7 @@ class InternalTicketState {
     this.errorMessage,
     this.hasMore = true,
     this.currentPage = 1,
+    this.lastPage = 1,
   });
 
   InternalTicketState copyWith({
@@ -35,6 +37,7 @@ class InternalTicketState {
     String? errorMessage,
     bool? hasMore,
     int? currentPage,
+    int? lastPage,
   }) {
     return InternalTicketState(
       tickets: tickets ?? this.tickets,
@@ -43,6 +46,7 @@ class InternalTicketState {
       errorMessage: errorMessage,
       hasMore: hasMore ?? this.hasMore,
       currentPage: currentPage ?? this.currentPage,
+      lastPage: lastPage ?? this.lastPage,
     );
   }
 }
@@ -82,11 +86,13 @@ class InternalTicketNotifier extends Notifier<InternalTicketState> {
       );
 
       if (response.success && response.data != null) {
+        final lastPage = response.meta?.lastPage ?? 1;
         state = state.copyWith(
           isLoading: false,
           tickets: response.data!,
           currentPage: 1,
-          hasMore: response.data!.length >= 20,
+          lastPage: lastPage,
+          hasMore: 1 < lastPage,
           errorMessage: null,
         );
       } else {
@@ -123,12 +129,14 @@ class InternalTicketNotifier extends Notifier<InternalTicketState> {
       );
 
       if (response.success && response.data != null) {
+        final lastPage = response.meta?.lastPage ?? state.lastPage;
         final newTickets = [...state.tickets, ...response.data!];
         state = state.copyWith(
           isLoadingMore: false,
           tickets: newTickets,
           currentPage: nextPage,
-          hasMore: response.data!.length >= 20,
+          lastPage: lastPage,
+          hasMore: nextPage < lastPage,
         );
       } else {
         state = state.copyWith(isLoadingMore: false);

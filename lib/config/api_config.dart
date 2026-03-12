@@ -29,7 +29,13 @@ class ApiConfig {
   
   static String customerEditReply(String ticketId, int commentId) =>
       '/api/mobile/tickets/$ticketId/reply/$commentId/edit';
-  
+
+  static String customerRatingForm(String ticketId) =>
+      '/api/mobile/tickets/$ticketId/rating/form';
+
+  static String customerRating(String ticketId) =>
+      '/api/mobile/tickets/$ticketId/rating';
+
   // Customer FCM Endpoints
   static const String customerFcmToken = '/api/mobile/fcm/token';
 

@@ -187,7 +187,19 @@ class InternalTicketRepository {
             .map((e) => TicketModel.fromJson(e as Map<String, dynamic>))
             .toList();
 
-        return ApiResponse.success(tickets);
+        // Parse pagination meta from top-level or nested paginated response
+        PaginationMeta? meta;
+        if (responseData['meta'] is Map) {
+          meta = PaginationMeta.fromJson(
+            responseData['meta'] as Map<String, dynamic>,
+          );
+        } else if (rawData is Map && rawData['meta'] is Map) {
+          meta = PaginationMeta.fromJson(
+            rawData['meta'] as Map<String, dynamic>,
+          );
+        }
+
+        return ApiResponse.success(tickets, meta: meta);
       }
 
       return ApiResponse.error(

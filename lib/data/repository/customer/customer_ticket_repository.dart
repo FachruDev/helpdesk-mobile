@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:helpdesk_mobile/config/api_config.dart';
 import 'package:helpdesk_mobile/data/models/api_response.dart';
+import 'package:helpdesk_mobile/data/models/rating_model.dart';
 import 'package:helpdesk_mobile/data/models/ticket_model.dart';
 import 'package:helpdesk_mobile/data/models/category_model.dart';
 import 'package:helpdesk_mobile/data/models/employee_model.dart';
@@ -242,7 +243,19 @@ class CustomerTicketRepository {
             .map((e) => TicketModel.fromJson(e as Map<String, dynamic>))
             .toList();
 
-        return ApiResponse.success(tickets);
+        // Parse pagination meta from top-level or nested paginated response
+        PaginationMeta? meta;
+        if (responseData['meta'] is Map) {
+          meta = PaginationMeta.fromJson(
+            responseData['meta'] as Map<String, dynamic>,
+          );
+        } else if (rawData is Map && rawData['meta'] is Map) {
+          meta = PaginationMeta.fromJson(
+            rawData['meta'] as Map<String, dynamic>,
+          );
+        }
+
+        return ApiResponse.success(tickets, meta: meta);
       }
 
       return ApiResponse.error(
@@ -560,6 +573,84 @@ class CustomerTicketRepository {
         responseData['message'] ?? 'Failed to edit reply',
         statusCode: response.statusCode,
         errors: responseData['errors'] as Map<String, dynamic>?,
+      );
+    } catch (e) {
+      return ApiResponse.error('Network error: ${e.toString()}');
+    }
+  }
+
+  /// Get CSAT rating form for a ticket (dynamic options from SLA point profile).
+  Future<ApiResponse<RatingFormModel>> getRatingForm(String ticketId) async {
+    try {
+      final token = await _getToken();
+      if (token == null) return ApiResponse.error('No token found');
+
+      final url = Uri.parse(
+        '${ApiConfig.baseUrl}${ApiConfig.customerRatingForm(ticketId)}',
+      );
+
+      final response = await http.get(
+        url,
+        headers: ApiConfig.headers(token: token),
+      );
+
+      final Map<String, dynamic> responseData = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        final data = responseData['data'];
+        if (data != null) {
+          return ApiResponse.success(RatingFormModel.fromJson(data));
+        }
+      }
+
+      return ApiResponse.error(
+        responseData['message'] ?? 'Failed to load rating form',
+        statusCode: response.statusCode,
+      );
+    } catch (e) {
+      return ApiResponse.error('Network error: ${e.toString()}');
+    }
+  }
+
+  /// Submit CSAT rating. Returns 409 if already rated.
+  Future<ApiResponse<RatingSubmitResult>> submitRating({
+    required String ticketId,
+    required int rating,
+    String? comment,
+  }) async {
+    try {
+      final token = await _getToken();
+      if (token == null) return ApiResponse.error('No token found');
+
+      final url = Uri.parse(
+        '${ApiConfig.baseUrl}${ApiConfig.customerRating(ticketId)}',
+      );
+
+      final Map<String, dynamic> body = {'rating': rating};
+      if (comment != null && comment.isNotEmpty) body['comment'] = comment;
+
+      final response = await http.post(
+        url,
+        headers: ApiConfig.headers(token: token),
+        body: jsonEncode(body),
+      );
+
+      final Map<String, dynamic> responseData = jsonDecode(response.body);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = responseData['data'];
+        if (data != null) {
+          return ApiResponse.success(
+            RatingSubmitResult.fromJson(data),
+            message: responseData['message'],
+          );
+        }
+      }
+
+      // 409 = already rated
+      return ApiResponse.error(
+        responseData['message'] ?? 'Failed to submit rating',
+        statusCode: response.statusCode,
       );
     } catch (e) {
       return ApiResponse.error('Network error: ${e.toString()}');
