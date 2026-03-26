@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:helpdesk_mobile/data/models/api_response.dart';
 import 'package:helpdesk_mobile/data/models/rating_model.dart';
 import 'package:helpdesk_mobile/data/models/ticket_model.dart';
 import 'package:helpdesk_mobile/data/repository/customer/customer_ticket_repository.dart';
@@ -148,33 +149,23 @@ class CustomerTicketNotifier extends Notifier<CustomerTicketState> {
   }
 
   // Create ticket
-  Future<bool> createTicket({
+  Future<ApiResponse<TicketModel>> createTicket({
     required String subject,
-    required int categoryId,
     required String message,
     required String requestToUserId,
     String? requestToOther,
-    String? project,
-    int? subCategory,
-    String? envatoSupport,
     List<File>? files,
   }) async {
     try {
-      final response = await _repository.createTicket(
+      return await _repository.createTicket(
         subject: subject,
-        categoryId: categoryId,
         message: message,
         requestToUserId: requestToUserId,
         requestToOther: requestToOther,
-        project: project,
-        subCategory: subCategory,
-        envatoSupport: envatoSupport,
         files: files,
       );
-
-      return response.success;
     } catch (e) {
-      return false;
+      return ApiResponse.error('Network error: ${e.toString()}');
     }
   }
 

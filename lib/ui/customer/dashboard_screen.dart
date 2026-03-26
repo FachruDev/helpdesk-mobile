@@ -4,6 +4,7 @@ import 'package:helpdesk_mobile/config/app_colors.dart';
 import 'package:helpdesk_mobile/states/customer/customer_auth_provider.dart';
 import 'package:helpdesk_mobile/states/customer/customer_ticket_provider.dart';
 import 'package:helpdesk_mobile/ui/customer/create_ticket_screen.dart';
+import 'package:helpdesk_mobile/ui/customer/csat_screen.dart';
 import 'package:helpdesk_mobile/ui/customer/filter_screen.dart';
 import 'package:helpdesk_mobile/ui/customer/profile_screen.dart';
 import 'package:helpdesk_mobile/ui/customer/ticket_detail_screen.dart';
@@ -170,6 +171,15 @@ class _CustomerDashboardScreenState extends ConsumerState<CustomerDashboardScree
             ),
           );
         },
+        onCsatTap: () {
+          Navigator.pop(context);
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const CustomerCsatScreen(),
+            ),
+          );
+        },
         onProfileTap: () {
           Navigator.pop(context);
           Navigator.push(
@@ -286,6 +296,7 @@ class _CustomerDashboardScreenState extends ConsumerState<CustomerDashboardScree
                                 final ticket = ticketState.tickets[index];
                                 return TicketCard(
                                   ticket: ticket,
+                                  isInternalView: false,
                                   onTap: () async {
                                     await Navigator.push(
                                       context,

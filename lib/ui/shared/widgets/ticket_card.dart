@@ -7,12 +7,25 @@ import 'package:intl/intl.dart';
 class TicketCard extends StatelessWidget {
   final TicketModel ticket;
   final VoidCallback onTap;
+  final bool isInternalView;
 
   const TicketCard({
     super.key,
     required this.ticket,
     required this.onTap,
+    this.isInternalView = false,
   });
+
+  String? _getAgentName() {
+    return ticket.requestTo?.name ??
+        ticket.requestToName ??
+        ticket.assignedTo ??
+        ticket.requestToOther;
+  }
+
+  String? _getCustomerDisplay() {
+    return ticket.customerName ?? ticket.customerEmail;
+  }
 
   Color _getStatusColor(TicketStatus status) {
     switch (status) {
@@ -125,6 +138,66 @@ class TicketCard extends StatelessWidget {
                   spacing: 8,
                   runSpacing: 6,
                   children: [
+                    if (!isInternalView && _getAgentName() != null)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.info.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.support_agent,
+                              size: 13,
+                              color: AppColors.info,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Agent: ${_getAgentName()!}',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.info,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    if (isInternalView && _getCustomerDisplay() != null)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.person_outline,
+                              size: 13,
+                              color: AppColors.primary,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Customer: ${_getCustomerDisplay()!}',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     // Use categoryInfo.name (new) with fallback to categoryName (legacy)
                     if (ticket.categoryInfo?.name != null || ticket.categoryName != null)
                       Container(

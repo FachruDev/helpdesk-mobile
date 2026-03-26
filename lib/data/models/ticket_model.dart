@@ -1,6 +1,7 @@
 import 'package:helpdesk_mobile/data/enums/ticket_status.dart';
 
 class TicketModel {
+  final int? id;
   final String ticketId;
   final String subject;
   final String? message; // Optional - not in list response
@@ -19,6 +20,7 @@ class TicketModel {
   final String? customerName;
   final String? customerEmail;
   final String? assignedTo;
+  final String? ticketOption;
   final DateTime createdAt;
   final DateTime? updatedAt;
   final DateTime? lastReply; // From API: last_reply
@@ -32,8 +34,10 @@ class TicketModel {
   final SlaSummaryModel? slaSummary;
   final TicketPointsModel? points;
   final TicketPermissionsModel? permissions;
+  final TicketCsatModel? csat;
 
   TicketModel({
+    this.id,
     required this.ticketId,
     required this.subject,
     this.message,
@@ -52,6 +56,7 @@ class TicketModel {
     this.customerName,
     this.customerEmail,
     this.assignedTo,
+    this.ticketOption,
     required this.createdAt,
     this.updatedAt,
     this.lastReply,
@@ -64,10 +69,12 @@ class TicketModel {
     this.slaSummary,
     this.points,
     this.permissions,
+    this.csat,
   });
 
   factory TicketModel.fromJson(Map<String, dynamic> json) {
     return TicketModel(
+      id: json['id'],
       ticketId: json['ticket_id']?.toString() ?? json['id']?.toString() ?? '',
       subject: json['subject'] ?? '',
       message: json['message'], // Optional in list response
@@ -89,6 +96,7 @@ class TicketModel {
       customerName: json['customer_name'] ?? json['customer']?['name'],
       customerEmail: json['customer_email'] ?? json['customer']?['email'],
       assignedTo: json['assigned_to'],
+      ticketOption: json['ticket_option']?.toString(),
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'])
           : DateTime.now(),
@@ -134,11 +142,15 @@ class TicketModel {
       permissions: json['permissions'] != null
           ? TicketPermissionsModel.fromJson(json['permissions'])
           : null,
+        csat: json['csat'] != null && json['csat'] is Map
+          ? TicketCsatModel.fromJson(json['csat'] as Map<String, dynamic>)
+          : null,
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
+      'id': id,
       'ticket_id': ticketId,
       'subject': subject,
       'message': message,
@@ -154,10 +166,12 @@ class TicketModel {
       'customer_name': customerName,
       'customer_email': customerEmail,
       'assigned_to': assignedTo,
+      'ticket_option': ticketOption,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt?.toIso8601String(),
       'replies': replies?.map((e) => e.toJson()).toList(),
       'attachments': attachments?.map((e) => e.toJson()).toList(),
+      'csat': csat?.toJson(),
     };
   }
 }
@@ -589,5 +603,51 @@ class TicketPermissionsModel {
           json['can_edit_resolution_target_working_days'] ?? false,
       canViewCsat: json['can_view_csat'] ?? false,
     );
+  }
+}
+
+class TicketCsatModel {
+  final String status; // pending, rated, all
+  final bool isRated;
+  final int? ratingId;
+  final int? rating;
+  final String? comment;
+  final DateTime? ratedAt;
+  final bool canSubmit;
+
+  TicketCsatModel({
+    required this.status,
+    required this.isRated,
+    this.ratingId,
+    this.rating,
+    this.comment,
+    this.ratedAt,
+    this.canSubmit = false,
+  });
+
+  factory TicketCsatModel.fromJson(Map<String, dynamic> json) {
+    return TicketCsatModel(
+      status: json['status']?.toString() ?? 'pending',
+      isRated: json['is_rated'] ?? false,
+      ratingId: json['rating_id'],
+      rating: json['rating'],
+      comment: json['comment']?.toString(),
+      ratedAt: json['rated_at'] != null
+          ? DateTime.tryParse(json['rated_at'].toString())
+          : null,
+      canSubmit: json['can_submit'] ?? false,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'status': status,
+      'is_rated': isRated,
+      'rating_id': ratingId,
+      'rating': rating,
+      'comment': comment,
+      'rated_at': ratedAt?.toIso8601String(),
+      'can_submit': canSubmit,
+    };
   }
 }

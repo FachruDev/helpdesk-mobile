@@ -6,6 +6,7 @@ class InternalDrawer extends StatelessWidget {
   final dynamic user;
   final VoidCallback onDashboardTap;
   final VoidCallback onCreateTicketTap;
+  final VoidCallback onCsatCenterTap;
   final VoidCallback onProfileTap;
   final VoidCallback onLogoutTap;
 
@@ -14,6 +15,7 @@ class InternalDrawer extends StatelessWidget {
     required this.user,
     required this.onDashboardTap,
     required this.onCreateTicketTap,
+    required this.onCsatCenterTap,
     required this.onProfileTap,
     required this.onLogoutTap,
   });
@@ -146,6 +148,12 @@ class InternalDrawer extends StatelessWidget {
                       icon: Icons.add_circle_outline_rounded,
                       title: 'Create Ticket',
                       onTap: onCreateTicketTap,
+                    ),
+                    const SizedBox(height: 4),
+                    _buildDrawerItem(
+                      icon: Icons.notifications_active_outlined,
+                      title: 'CSAT Center',
+                      onTap: onCsatCenterTap,
                     ),
                     const SizedBox(height: 4),
                     _buildDrawerItem(

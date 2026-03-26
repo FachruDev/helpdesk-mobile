@@ -211,6 +211,162 @@ class InternalTicketRepository {
     }
   }
 
+  /// Get CSAT ticket list for internal CSAT Center.
+  Future<ApiResponse<List<TicketModel>>> getCsatTickets({
+    String csatStatus = 'pending',
+    String? ticketStatus,
+    String? search,
+    String? startDate,
+    String? endDate,
+    int perPage = 20,
+    int page = 1,
+  }) async {
+    try {
+      final token = await _getToken();
+      if (token == null) return ApiResponse.error('No token found');
+
+      final queryParams = <String, String>{
+        'csat_status': csatStatus,
+        'per_page': perPage.toString(),
+        'page': page.toString(),
+      };
+      if (ticketStatus != null && ticketStatus.isNotEmpty) {
+        queryParams['ticket_status'] = ticketStatus;
+      }
+      if (search != null && search.isNotEmpty) queryParams['search'] = search;
+      if (startDate != null && startDate.isNotEmpty) {
+        queryParams['start_date'] = startDate;
+      }
+      if (endDate != null && endDate.isNotEmpty) {
+        queryParams['end_date'] = endDate;
+      }
+
+      final url = Uri.parse(
+        '${ApiConfig.baseUrl}${ApiConfig.internalCsatTickets}',
+      ).replace(queryParameters: queryParams);
+
+      final response = await http.get(
+        url,
+        headers: ApiConfig.headers(token: token),
+      );
+
+      final Map<String, dynamic> responseData = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        final rawData = responseData['data'];
+        List ticketsData;
+        if (rawData is List) {
+          ticketsData = rawData;
+        } else if (rawData is Map) {
+          ticketsData = rawData['data'] as List? ?? [];
+        } else {
+          ticketsData = responseData['tickets'] as List? ?? [];
+        }
+
+        final tickets = ticketsData
+            .map((e) => TicketModel.fromJson(e as Map<String, dynamic>))
+            .toList();
+
+        PaginationMeta? meta;
+        if (responseData['meta'] is Map) {
+          meta = PaginationMeta.fromJson(
+            responseData['meta'] as Map<String, dynamic>,
+          );
+        } else if (rawData is Map && rawData['meta'] is Map) {
+          meta = PaginationMeta.fromJson(
+            rawData['meta'] as Map<String, dynamic>,
+          );
+        }
+
+        return ApiResponse.success(tickets, meta: meta);
+      }
+
+      return ApiResponse.error(
+        responseData['message'] ?? 'Failed to fetch CSAT tickets',
+        statusCode: response.statusCode,
+      );
+    } catch (e) {
+      return ApiResponse.error('Network error: ${e.toString()}');
+    }
+  }
+
+  /// Send CSAT reminder for one ticket id (database id, not ticket number).
+  Future<ApiResponse<void>> sendCsatReminder(int ticketId) async {
+    try {
+      final token = await _getToken();
+      if (token == null) return ApiResponse.error('No token found');
+
+      final url = Uri.parse(
+        '${ApiConfig.baseUrl}${ApiConfig.internalCsatRemind(ticketId)}',
+      );
+
+      final response = await http.post(
+        url,
+        headers: ApiConfig.headers(token: token),
+      );
+
+      final Map<String, dynamic> responseData = jsonDecode(response.body);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return ApiResponse.success(null, message: responseData['message']);
+      }
+
+      return ApiResponse.error(
+        responseData['message'] ?? 'Failed to send CSAT reminder',
+        statusCode: response.statusCode,
+      );
+    } catch (e) {
+      return ApiResponse.error('Network error: ${e.toString()}');
+    }
+  }
+
+  /// Send reminder to all pending CSAT tickets based on current filter.
+  Future<ApiResponse<void>> sendCsatReminderAll({
+    String? ticketStatus,
+    String? search,
+    String? startDate,
+    String? endDate,
+  }) async {
+    try {
+      final token = await _getToken();
+      if (token == null) return ApiResponse.error('No token found');
+
+      final queryParams = <String, String>{};
+      if (ticketStatus != null && ticketStatus.isNotEmpty) {
+        queryParams['ticket_status'] = ticketStatus;
+      }
+      if (search != null && search.isNotEmpty) queryParams['search'] = search;
+      if (startDate != null && startDate.isNotEmpty) {
+        queryParams['start_date'] = startDate;
+      }
+      if (endDate != null && endDate.isNotEmpty) {
+        queryParams['end_date'] = endDate;
+      }
+
+      final url = Uri.parse(
+        '${ApiConfig.baseUrl}${ApiConfig.internalCsatRemindAll}',
+      ).replace(queryParameters: queryParams.isEmpty ? null : queryParams);
+
+      final response = await http.post(
+        url,
+        headers: ApiConfig.headers(token: token),
+      );
+
+      final Map<String, dynamic> responseData = jsonDecode(response.body);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return ApiResponse.success(null, message: responseData['message']);
+      }
+
+      return ApiResponse.error(
+        responseData['message'] ?? 'Failed to send CSAT reminders',
+        statusCode: response.statusCode,
+      );
+    } catch (e) {
+      return ApiResponse.error('Network error: ${e.toString()}');
+    }
+  }
+
   /// Get ticket detail
   Future<ApiResponse<TicketModel>> getTicketDetail(String ticketId) async {
     try {

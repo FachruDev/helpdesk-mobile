@@ -9,6 +9,7 @@ import 'package:helpdesk_mobile/ui/customer/widgets/ticket_statistics_widget.dar
 import 'package:helpdesk_mobile/ui/customer/login_screen.dart';
 import 'package:helpdesk_mobile/ui/internal/profile_screen.dart';
 import 'package:helpdesk_mobile/ui/internal/filter_screen.dart';
+import 'package:helpdesk_mobile/ui/internal/csat_center_screen.dart';
 import 'package:helpdesk_mobile/ui/internal/ticket_detail_screen.dart';
 import 'package:helpdesk_mobile/ui/internal/create_ticket/create_ticket_screen.dart';
 
@@ -181,6 +182,15 @@ class _InternalDashboardScreenState
             _refreshTickets();
           }
         },
+        onCsatCenterTap: () {
+          Navigator.pop(context);
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const InternalCsatCenterScreen(),
+            ),
+          );
+        },
         onProfileTap: () {
           Navigator.pop(context);
           Navigator.push(
@@ -307,6 +317,7 @@ class _InternalDashboardScreenState
                                 final ticket = ticketState.tickets[index];
                                 return TicketCard(
                                   ticket: ticket,
+                                  isInternalView: true,
                                   onTap: () async {
                                     final result = await Navigator.push(
                                       context,
