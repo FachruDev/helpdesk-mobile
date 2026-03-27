@@ -230,8 +230,10 @@ class InternalTicketRepository {
         'per_page': perPage.toString(),
         'page': page.toString(),
       };
-      if (ticketStatus != null && ticketStatus.isNotEmpty) {
-        queryParams['ticket_status'] = ticketStatus;
+      final isValidTicketStatus =
+          ticketStatus == 'Closed' || ticketStatus == 'Solved';
+      if (isValidTicketStatus) {
+        queryParams['ticket_status'] = ticketStatus!;
       }
       if (search != null && search.isNotEmpty) queryParams['search'] = search;
       if (startDate != null && startDate.isNotEmpty) {
@@ -332,8 +334,10 @@ class InternalTicketRepository {
       if (token == null) return ApiResponse.error('No token found');
 
       final queryParams = <String, String>{};
-      if (ticketStatus != null && ticketStatus.isNotEmpty) {
-        queryParams['ticket_status'] = ticketStatus;
+      final isValidTicketStatus =
+          ticketStatus == 'Closed' || ticketStatus == 'Solved';
+      if (isValidTicketStatus) {
+        queryParams['ticket_status'] = ticketStatus!;
       }
       if (search != null && search.isNotEmpty) queryParams['search'] = search;
       if (startDate != null && startDate.isNotEmpty) {

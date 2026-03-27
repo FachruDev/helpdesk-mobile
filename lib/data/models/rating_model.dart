@@ -1,4 +1,5 @@
 /// Models for Customer CSAT Rating (GET form + POST submit).
+library;
 
 class RatingScale {
   final int min;

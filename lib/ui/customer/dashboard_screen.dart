@@ -173,12 +173,15 @@ class _CustomerDashboardScreenState extends ConsumerState<CustomerDashboardScree
         },
         onCsatTap: () {
           Navigator.pop(context);
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => const CustomerCsatScreen(),
-            ),
-          );
+          Future<void>.delayed(Duration.zero, () {
+            if (!mounted) return;
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const CustomerCsatScreen(),
+              ),
+            );
+          });
         },
         onProfileTap: () {
           Navigator.pop(context);

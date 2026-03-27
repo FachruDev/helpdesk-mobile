@@ -1030,7 +1030,7 @@ class _InternalTicketDetailScreenState
               availableStatuses != null &&
               availableStatuses.holdReasonOptions.isNotEmpty) ...[
             DropdownButtonFormField<String>(
-              value: _selectedHoldReason,
+              initialValue: _selectedHoldReason,
               decoration: InputDecoration(
                 labelText: 'Hold Reason *',
                 prefixIcon: const Icon(Icons.pause_circle_outline, size: 20),

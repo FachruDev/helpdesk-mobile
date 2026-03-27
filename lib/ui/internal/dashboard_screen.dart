@@ -184,12 +184,15 @@ class _InternalDashboardScreenState
         },
         onCsatCenterTap: () {
           Navigator.pop(context);
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => const InternalCsatCenterScreen(),
-            ),
-          );
+          Future<void>.delayed(Duration.zero, () {
+            if (!mounted) return;
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const InternalCsatCenterScreen(),
+              ),
+            );
+          });
         },
         onProfileTap: () {
           Navigator.pop(context);

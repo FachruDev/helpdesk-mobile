@@ -404,7 +404,7 @@ class _CustomerTicketDetailScreenState
                 // Closed ticket notice
                 if (isTicketClosed) ...[
                   const SizedBox(height: 16),
-                  _buildClosedTicketNotice(ticket.status.value),
+                  _buildClosedTicketNotice(ticket.status.value, ticket.replyStatus),
                 ],
               ],
             ),
@@ -848,8 +848,14 @@ class _CustomerTicketDetailScreenState
     );
   }
 
-  Widget _buildClosedTicketNotice(String statusValue) {
+  Widget _buildClosedTicketNotice(String statusValue, String? replyStatus) {
     final isCancelled = statusValue.toLowerCase() == 'cancelled';
+    final statusLower = statusValue.toLowerCase();
+    final replyStatusLower = (replyStatus ?? '').toLowerCase();
+    final isClosedOrSolved =
+        statusLower == 'closed' ||
+        statusLower == 'solved' ||
+        replyStatusLower == 'solved';
     final ratingFormAsync =
         ref.watch(customerRatingFormProvider(widget.ticketId));
 
@@ -895,8 +901,8 @@ class _CustomerTicketDetailScreenState
                 ),
               ],
             ),
-            // CSAT Rating button (only for closed tickets, not cancelled)
-            if (!isCancelled)
+            // CSAT only for Closed/Solved flow (legacy fallback: replystatus=Solved)
+            if (!isCancelled && isClosedOrSolved)
               ratingFormAsync.when(
                 data: (form) {
                   if (form == null) return const SizedBox.shrink();

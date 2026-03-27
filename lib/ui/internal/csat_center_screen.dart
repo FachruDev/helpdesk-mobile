@@ -19,6 +19,59 @@ class _InternalCsatCenterScreenState
     extends ConsumerState<InternalCsatCenterScreen> {
   final ScrollController _scrollController = ScrollController();
 
+  Future<bool> _showRemindAllConfirmationDialog() async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Send Reminder All'),
+          content: const Text(
+            'Kirim notifikasi reminder ke semua ticket CSAT pending sesuai filter saat ini?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Batal'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Kirim'),
+            ),
+          ],
+        );
+      },
+    );
+
+    return result == true;
+  }
+
+  Future<void> _showSuccessDialog({
+    required String title,
+    required String message,
+  }) async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Row(
+            children: const [
+              Icon(Icons.check_circle, color: AppColors.success),
+              SizedBox(width: 8),
+              Text('Berhasil'),
+            ],
+          ),
+          content: Text(message),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -75,18 +128,26 @@ class _InternalCsatCenterScreenState
     final latestState = ref.read(internalCsatProvider);
     if (!mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(ok
-            ? 'Reminder berhasil dikirim ke pending tickets.'
-            : (latestState.errorMessage ?? 'Gagal kirim reminder.')),
-        backgroundColor: ok ? AppColors.success : AppColors.error,
-      ),
-    );
-
     if (ok) {
+      await _showSuccessDialog(
+        title: 'Berhasil',
+        message: 'Reminder berhasil dikirim ke semua ticket pending.',
+      );
       await ref.read(internalCsatProvider.notifier).fetchTickets(refresh: true);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(latestState.errorMessage ?? 'Gagal kirim reminder.'),
+          backgroundColor: AppColors.error,
+        ),
+      );
     }
+  }
+
+  Future<void> _onTapRemindAll(InternalCsatState state) async {
+    final confirmed = await _showRemindAllConfirmationDialog();
+    if (!confirmed || !mounted) return;
+    await _sendReminderAll(state);
   }
 
   Widget _buildStatusChip({
@@ -133,7 +194,7 @@ class _InternalCsatCenterScreenState
             TextButton(
               onPressed: state.isSendingReminderAll
                   ? null
-                  : () => _sendReminderAll(state),
+                  : () => _onTapRemindAll(state),
               child: state.isSendingReminderAll
                   ? const SizedBox(
                       height: 14,
@@ -393,20 +454,25 @@ class _InternalCsatCenterScreenState
                               final latestState =
                                   ref.read(internalCsatProvider);
                               if (!mounted) return;
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(ok
-                                      ? 'Reminder sent for ${ticket.ticketId}'
-                                      : (latestState.errorMessage ??
-                                          'Failed to send reminder')),
-                                  backgroundColor:
-                                      ok ? AppColors.success : AppColors.error,
-                                ),
-                              );
                               if (ok) {
+                                await _showSuccessDialog(
+                                  title: 'Berhasil',
+                                  message:
+                                      'Reminder berhasil dikirim untuk ${ticket.ticketId}.',
+                                );
                                 await ref
                                     .read(internalCsatProvider.notifier)
                                     .fetchTickets(refresh: true);
+                              } else {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      latestState.errorMessage ??
+                                          'Failed to send reminder',
+                                    ),
+                                    backgroundColor: AppColors.error,
+                                  ),
+                                );
                               }
                             },
                       child: const Text('Remind'),

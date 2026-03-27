@@ -140,7 +140,6 @@ class _InternalCsatFilterScreenState extends State<InternalCsatFilterScreen> {
                 DropdownMenuItem(value: null, child: Text('All Status')),
                 DropdownMenuItem(value: 'Closed', child: Text('Closed')),
                 DropdownMenuItem(value: 'Solved', child: Text('Solved')),
-                DropdownMenuItem(value: 'Cancelled', child: Text('Cancelled')),
               ],
               onChanged: (value) {
                 setState(() {
