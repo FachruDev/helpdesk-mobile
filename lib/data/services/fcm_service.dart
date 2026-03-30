@@ -55,6 +55,12 @@ class FcmService {
         print('FCM Token: $_fcmToken');
       }
 
+      // IMPORTANT: Re-sync current token on app start for active sessions.
+      // This prevents stale backend tokens when Firebase rotates token while app is closed.
+      if (_fcmToken != null) {
+        await _autoReRegisterToken(_fcmToken!);
+      }
+
       // Listen untuk token refresh dan AUTO RE-REGISTER ke backend
       _firebaseMessaging.onTokenRefresh.listen((newToken) async {
         final oldToken = _fcmToken;
@@ -208,12 +214,20 @@ class FcmService {
     final data = message.data;
     final notification = message.notification;
 
-    if (notification == null) return;
+    if (notification == null && kDebugMode) {
+      print('FCM data-only message detected, building local notification from data payload');
+    }
 
     // Extract additional info dari FCM v1 payload
     final String? ticketId = data['ticket_id'];
     final String? notificationType = data['type'];
-    final String? imageUrl = notification.android?.imageUrl ?? notification.apple?.imageUrl;
+    final String? imageUrl = notification?.android?.imageUrl ?? notification?.apple?.imageUrl;
+    final String title = (notification?.title?.trim().isNotEmpty ?? false)
+        ? notification!.title!.trim()
+        : _defaultTitleForType(notificationType);
+    final String body = (notification?.body?.trim().isNotEmpty ?? false)
+        ? notification!.body!.trim()
+        : (_extractBodyFromData(data) ?? 'Ada update pada tiket Anda.');
 
     // Determine notification channel based on type
     String channelId = 'helpdesk_notifications';
@@ -242,6 +256,9 @@ class FcmService {
       }
     }
 
+    final bool canUseFileImage = imageUrl != null &&
+        (imageUrl.startsWith('/') || imageUrl.startsWith('file://'));
+
     final AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
       channelId,
       channelName,
@@ -251,20 +268,20 @@ class FcmService {
       enableVibration: true,
       playSound: true,
       // Support image notification jika ada
-      styleInformation: imageUrl != null
+      styleInformation: canUseFileImage
           ? BigPictureStyleInformation(
               FilePathAndroidBitmap(imageUrl),
-              contentTitle: notification.title,
-              summaryText: notification.body,
+              contentTitle: title,
+              summaryText: body,
             )
           : BigTextStyleInformation(
-              notification.body ?? '',
-              contentTitle: notification.title,
+              body,
+              contentTitle: title,
             ),
       // Add ticket ID ke tag untuk notification grouping
       tag: ticketId,
       // Add logging tag
-      ticker: notification.title,
+      ticker: title,
     );
 
     const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
@@ -280,13 +297,57 @@ class FcmService {
       iOS: iosDetails,
     );
 
+    final int notificationId =
+        message.messageId?.hashCode ?? DateTime.now().millisecondsSinceEpoch % 2147483647;
+
     await _localNotifications.show(
-      notification.hashCode,
-      notification.title,
-      notification.body,
+      notificationId,
+      title,
+      body,
       notificationDetails,
       payload: _encodePayload(data),
     );
+  }
+
+  String _defaultTitleForType(String? type) {
+    switch (type) {
+      case 'ticket.created':
+        return 'Tiket Baru';
+      case 'ticket.status_changed':
+        return 'Update Status Tiket';
+      case 'ticket.comment_added':
+        return 'Komentar Tiket Baru';
+      case 'ticket.reply_received':
+        return 'Balasan Tiket Baru';
+      default:
+        return 'Helpdesk Notification';
+    }
+  }
+
+  String? _extractBodyFromData(Map<String, dynamic> data) {
+    final candidates = [
+      data['body'],
+      data['message'],
+      data['comment_preview'],
+    ];
+
+    for (final value in candidates) {
+      if (value is String && value.trim().isNotEmpty) {
+        return value.trim();
+      }
+    }
+
+    final status = data['status']?.toString();
+    if (status != null && status.trim().isNotEmpty) {
+      return 'Status tiket berubah ke $status';
+    }
+
+    final ticketId = data['ticket_id']?.toString();
+    if (ticketId != null && ticketId.trim().isNotEmpty) {
+      return 'Ada update pada tiket $ticketId';
+    }
+
+    return null;
   }
 
   /// Encode notification data ke string payload

@@ -57,6 +57,7 @@ class NotificationHandler {
     final type = data['type'] as String?;
     final ticketId = data['ticket_id'] as String?;
     final sentAt = data['sent_at'] as String?;
+    final replyId = data['reply_id']?.toString();
 
     debugPrint('Handling notification tap:');
     debugPrint('  Type: $type');
@@ -67,8 +68,14 @@ class NotificationHandler {
       return;
     }
 
-    // Prevent duplicate navigation (debounce 2 seconds)
-    final notificationKey = '$type-$ticketId-$sentAt';
+    // Prevent duplicate navigation. If sent_at is missing, fallback to reply_id.
+    // If both are missing, use timestamp so a missing sent_at does not block future notifications.
+    final dedupeKeyPart = (sentAt != null && sentAt.isNotEmpty)
+      ? sentAt
+      : (replyId != null && replyId.isNotEmpty)
+        ? replyId
+        : DateTime.now().microsecondsSinceEpoch.toString();
+    final notificationKey = '$type-$ticketId-$dedupeKeyPart';
     if (_processedNotifications.contains(notificationKey)) {
       debugPrint('Notification already processed, ignoring duplicate');
       return;
