@@ -5,6 +5,7 @@ import 'package:helpdesk_mobile/data/models/ticket_model.dart';
 import 'package:helpdesk_mobile/states/internal/internal_csat_provider.dart';
 import 'package:helpdesk_mobile/ui/internal/csat_filter_screen.dart';
 import 'package:helpdesk_mobile/ui/internal/ticket_detail_screen.dart';
+import 'package:helpdesk_mobile/ui/shared/widgets/app_action_button.dart';
 import 'package:intl/intl.dart';
 
 class InternalCsatCenterScreen extends ConsumerStatefulWidget {
@@ -191,23 +192,18 @@ class _InternalCsatCenterScreenState
             tooltip: 'Filter',
           ),
           if (canRemindAll)
-            TextButton(
-              onPressed: state.isSendingReminderAll
-                  ? null
-                  : () => _onTapRemindAll(state),
-              child: state.isSendingReminderAll
-                  ? const SizedBox(
-                      height: 14,
-                      width: 14,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: AppColors.white,
-                      ),
-                    )
-                  : const Text(
-                      'Remind All',
-                      style: TextStyle(color: AppColors.white),
-                    ),
+            Padding(
+              padding: const EdgeInsets.only(right: 6),
+              child: AppActionButton(
+                label: 'Remind All',
+                icon: Icons.notifications_active_outlined,
+                onPressed: () => _onTapRemindAll(state),
+                isLoading: state.isSendingReminderAll,
+                variant: AppActionButtonVariant.text,
+                foregroundColor: AppColors.white,
+                loadingColor: AppColors.white,
+                compact: true,
+              ),
             ),
         ],
       ),
@@ -308,7 +304,15 @@ class _InternalCsatCenterScreenState
   Widget _buildTicketItem(TicketModel ticket, InternalCsatState state) {
     final csat = ticket.csat;
     final isRated = csat?.isRated == true;
+    final isSendingReminder =
+      ticket.id != null && state.sendingReminderIds.contains(ticket.id);
 
+    final hasRatedNote =
+        isRated && (csat?.comment != null && csat!.comment!.trim().isNotEmpty);
+    const ratedBadgeBg = Color(0xFFE8F5E9);
+    const ratedBadgeText = Color(0xFF1B5E20);
+    const pendingBadgeBg = Color(0xFFFFF4E5);
+    const pendingBadgeText = Color(0xFF8A4B00);
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
@@ -338,9 +342,7 @@ class _InternalCsatCenterScreenState
                     vertical: 3,
                   ),
                   decoration: BoxDecoration(
-                    color: isRated
-                        ? AppColors.success.withOpacity(0.15)
-                        : AppColors.warning.withOpacity(0.15),
+                    color: isRated ? ratedBadgeBg : pendingBadgeBg,
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
@@ -348,7 +350,7 @@ class _InternalCsatCenterScreenState
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
-                      color: isRated ? AppColors.success : AppColors.warning,
+                      color: isRated ? ratedBadgeText : pendingBadgeText,
                     ),
                   ),
                 ),
@@ -403,23 +405,32 @@ class _InternalCsatCenterScreenState
                 ),
                 const Spacer(),
                 if (isRated && csat?.rating != null)
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.star_rounded,
-                        size: 14,
-                        color: AppColors.warning,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${csat!.rating}/5',
-                        style: const TextStyle(
-                          color: AppColors.textSecondary,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 12,
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF8E1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFFFFE082)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.star_rounded,
+                          size: 14,
+                          color: Color(0xFFE65100),
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 4),
+                        Text(
+                          '${csat!.rating}/5',
+                          style: const TextStyle(
+                            color: Color(0xFF6D4C41),
+                            fontWeight: FontWeight.w700,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
               ],
             ),
@@ -427,7 +438,7 @@ class _InternalCsatCenterScreenState
             Row(
               children: [
                 Expanded(
-                  child: OutlinedButton(
+                  child: AppActionButton(
                     onPressed: () {
                       Navigator.push(
                         context,
@@ -438,13 +449,18 @@ class _InternalCsatCenterScreenState
                         ),
                       );
                     },
-                    child: const Text('View Ticket'),
+                    variant: AppActionButtonVariant.outlined,
+                    icon: Icons.visibility_outlined,
+                    label: 'View Ticket',
+                    foregroundColor: const Color(0xFF1E3A8A),
+                    backgroundColor: const Color(0xFFF3F7FF),
+                    borderColor: const Color(0xFFBFD2FF),
                   ),
                 ),
                 if (!isRated) ...[
                   const SizedBox(width: 8),
                   Expanded(
-                    child: ElevatedButton(
+                    child: AppActionButton(
                       onPressed: ticket.id == null
                           ? null
                           : () async {
@@ -475,12 +491,60 @@ class _InternalCsatCenterScreenState
                                 );
                               }
                             },
-                      child: const Text('Remind'),
+                      isLoading: isSendingReminder,
+                      variant: AppActionButtonVariant.filled,
+                      icon: Icons.notifications_active_outlined,
+                      label: 'Remind',
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: AppColors.white,
+                      loadingColor: AppColors.white,
                     ),
                   ),
                 ],
               ],
             ),
+            if (isRated) ...[
+              const SizedBox(height: 10),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF9FBFF),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFFD6E4FF)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.only(top: 1),
+                      child: Icon(
+                        Icons.notes_rounded,
+                        size: 16,
+                        color: Color(0xFF1E3A8A),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        hasRatedNote
+                          ? csat.comment!.trim()
+                            : 'No additional notes from customer.',
+                        style: TextStyle(
+                          color: hasRatedNote
+                              ? AppColors.textPrimary
+                              : AppColors.textSecondary,
+                          fontSize: 12,
+                          fontWeight:
+                              hasRatedNote ? FontWeight.w500 : FontWeight.w400,
+                          height: 1.35,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ],
         ),
       ),

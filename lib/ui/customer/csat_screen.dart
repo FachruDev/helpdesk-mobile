@@ -5,6 +5,7 @@ import 'package:helpdesk_mobile/data/models/ticket_model.dart';
 import 'package:helpdesk_mobile/states/customer/customer_csat_provider.dart';
 import 'package:helpdesk_mobile/ui/customer/csat_filter_screen.dart';
 import 'package:helpdesk_mobile/ui/customer/ticket_detail_screen.dart';
+import 'package:helpdesk_mobile/ui/shared/widgets/app_action_button.dart';
 import 'package:intl/intl.dart';
 
 class CustomerCsatScreen extends ConsumerStatefulWidget {
@@ -207,6 +208,12 @@ class _CustomerCsatScreenState extends ConsumerState<CustomerCsatScreen> {
     final csat = ticket.csat;
     final isRated = csat?.isRated == true;
     final canSubmit = csat?.canSubmit == true;
+    final hasRatedNote =
+        isRated && (csat?.comment != null && csat!.comment!.trim().isNotEmpty);
+    const ratedBadgeBg = Color(0xFFE8F5E9);
+    const ratedBadgeText = Color(0xFF1B5E20);
+    const pendingBadgeBg = Color(0xFFFFF4E5);
+    const pendingBadgeText = Color(0xFF8A4B00);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -237,9 +244,7 @@ class _CustomerCsatScreenState extends ConsumerState<CustomerCsatScreen> {
                     vertical: 3,
                   ),
                   decoration: BoxDecoration(
-                    color: isRated
-                        ? AppColors.success.withOpacity(0.15)
-                        : AppColors.warning.withOpacity(0.15),
+                    color: isRated ? ratedBadgeBg : pendingBadgeBg,
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
@@ -247,7 +252,7 @@ class _CustomerCsatScreenState extends ConsumerState<CustomerCsatScreen> {
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
-                      color: isRated ? AppColors.success : AppColors.warning,
+                      color: isRated ? ratedBadgeText : pendingBadgeText,
                     ),
                   ),
                 ),
@@ -282,30 +287,81 @@ class _CustomerCsatScreenState extends ConsumerState<CustomerCsatScreen> {
                 ),
                 const Spacer(),
                 if (isRated && csat?.rating != null)
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.star_rounded,
-                        size: 14,
-                        color: AppColors.warning,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${csat!.rating}/5',
-                        style: const TextStyle(
-                          color: AppColors.textSecondary,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 12,
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF8E1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFFFFE082)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.star_rounded,
+                          size: 14,
+                          color: Color(0xFFE65100),
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 4),
+                        Text(
+                          '${csat!.rating}/5',
+                          style: const TextStyle(
+                            color: Color(0xFF6D4C41),
+                            fontWeight: FontWeight.w700,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
               ],
             ),
+            if (isRated) ...[
+              const SizedBox(height: 10),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF9FBFF),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFFD6E4FF)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.only(top: 1),
+                      child: Icon(
+                        Icons.notes_rounded,
+                        size: 16,
+                        color: Color(0xFF1E3A8A),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        hasRatedNote
+                          ? csat.comment!.trim()
+                            : 'No additional notes from customer.',
+                        style: TextStyle(
+                          color: hasRatedNote
+                              ? AppColors.textPrimary
+                              : AppColors.textSecondary,
+                          fontSize: 12,
+                          fontWeight:
+                              hasRatedNote ? FontWeight.w500 : FontWeight.w400,
+                          height: 1.35,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 10),
             SizedBox(
               width: double.infinity,
-              child: OutlinedButton(
+              child: AppActionButton(
                 onPressed: () async {
                   await Navigator.push(
                     context,
@@ -320,7 +376,22 @@ class _CustomerCsatScreenState extends ConsumerState<CustomerCsatScreen> {
                         refresh: true,
                       );
                 },
-                child: Text(canSubmit ? 'Fill CSAT' : 'View Ticket'),
+                  variant: canSubmit
+                    ? AppActionButtonVariant.filled
+                    : AppActionButtonVariant.outlined,
+                  icon: canSubmit
+                    ? Icons.rate_review_rounded
+                    : Icons.visibility_outlined,
+                  label: canSubmit ? 'Fill CSAT' : 'View Ticket',
+                  backgroundColor: canSubmit
+                    ? AppColors.primary
+                    : const Color(0xFFF3F7FF),
+                  foregroundColor: canSubmit
+                    ? AppColors.white
+                    : const Color(0xFF1E3A8A),
+                  borderColor: canSubmit
+                    ? AppColors.primary
+                    : const Color(0xFFBFD2FF),
               ),
             ),
           ],

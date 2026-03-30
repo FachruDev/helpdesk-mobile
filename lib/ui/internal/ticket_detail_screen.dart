@@ -472,7 +472,7 @@ class _InternalTicketDetailScreenState
     return availableStatusesAsync.when(
       data: (availableStatuses) => _buildReplyInput(availableStatuses),
       loading: () => _buildReplyInput(null),
-      error: (_, __) => _buildReplyInput(null),
+      error: (_, _) => _buildReplyInput(null),
     );
   }
 

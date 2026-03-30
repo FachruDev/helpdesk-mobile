@@ -8,6 +8,7 @@ class InternalCsatState {
   final bool isLoading;
   final bool isLoadingMore;
   final bool isSendingReminderAll;
+  final Set<int> sendingReminderIds;
   final String? errorMessage;
   final bool hasMore;
   final int currentPage;
@@ -23,6 +24,7 @@ class InternalCsatState {
     this.isLoading = false,
     this.isLoadingMore = false,
     this.isSendingReminderAll = false,
+    this.sendingReminderIds = const <int>{},
     this.errorMessage,
     this.hasMore = true,
     this.currentPage = 1,
@@ -39,6 +41,7 @@ class InternalCsatState {
     bool? isLoading,
     bool? isLoadingMore,
     bool? isSendingReminderAll,
+    Set<int>? sendingReminderIds,
     String? errorMessage,
     bool? hasMore,
     int? currentPage,
@@ -54,6 +57,7 @@ class InternalCsatState {
       isLoading: isLoading ?? this.isLoading,
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
       isSendingReminderAll: isSendingReminderAll ?? this.isSendingReminderAll,
+      sendingReminderIds: sendingReminderIds ?? this.sendingReminderIds,
       errorMessage: errorMessage,
       hasMore: hasMore ?? this.hasMore,
       currentPage: currentPage ?? this.currentPage,
@@ -178,7 +182,17 @@ class InternalCsatNotifier extends Notifier<InternalCsatState> {
   }
 
   Future<bool> sendReminder(int ticketId) async {
+    final loadingIds = <int>{...state.sendingReminderIds, ticketId};
+    state = state.copyWith(
+      sendingReminderIds: loadingIds,
+      errorMessage: null,
+    );
+
     final response = await _repository.sendCsatReminder(ticketId);
+
+    final updatedIds = <int>{...state.sendingReminderIds}..remove(ticketId);
+    state = state.copyWith(sendingReminderIds: updatedIds);
+
     if (!response.success) {
       state = state.copyWith(errorMessage: response.message);
       return false;

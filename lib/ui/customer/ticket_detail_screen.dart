@@ -860,7 +860,7 @@ class _CustomerTicketDetailScreenState
         ref.watch(customerRatingFormProvider(widget.ticketId));
 
     return Card(
-      color: (isCancelled ? AppColors.error : AppColors.statusClosed).withOpacity(0.1),
+      color: (isCancelled ? AppColors.error : const Color.fromARGB(255, 252, 245, 229)),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -934,7 +934,7 @@ class _CustomerTicketDetailScreenState
                   padding: EdgeInsets.only(top: 12),
                   child: Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))),
                 ),
-                error: (_, __) => const SizedBox.shrink(),
+                error: (_, _) => const SizedBox.shrink(),
               ),
           ],
         ),
@@ -971,7 +971,7 @@ class _CustomerTicketDetailScreenState
                     'on ${DateFormat('dd MMM yyyy').format(existing.submittedAt!)}',
                     style: const TextStyle(
                       fontSize: 11,
-                      color: AppColors.textHint,
+                      color: Color.fromARGB(255, 26, 101, 24),
                     ),
                   ),
               ],
@@ -1126,8 +1126,8 @@ class _CustomerTicketDetailScreenState
                         ? null
                         : () async {
                             setSheetState(() => isSubmitting = true);
-                            final repo =
-                                ref.read(customerTicketRepositoryProvider);
+                            final repo = ref.read(customerTicketRepositoryProvider);
+
                             final result = await repo.submitRating(
                               ticketId: widget.ticketId,
                               rating: selectedRating!,
@@ -1135,30 +1135,46 @@ class _CustomerTicketDetailScreenState
                                   ? null
                                   : commentController.text.trim(),
                             );
-                            setSheetState(() => isSubmitting = false);
-                            if (!ctx.mounted) return;
-                            Navigator.pop(ctx);
-                            if (result.success) {
-                              // Refresh rating form to show submitted state
-                              ref.invalidate(
-                                customerRatingFormProvider(widget.ticketId),
-                              );
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Thank you for your rating!'),
-                                  backgroundColor: AppColors.success,
-                                ),
-                              );
-                            } else {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    result.message ?? 'Failed to submit rating',
-                                  ),
-                                  backgroundColor: AppColors.error,
-                                ),
-                              );
+
+                            if (ctx.mounted) {
+                              setSheetState(() => isSubmitting = false);
                             }
+
+                            if (ctx.mounted && Navigator.of(ctx).canPop()) {
+                              Navigator.of(ctx).pop();
+                            }
+
+                            if (!mounted) return;
+
+                            WidgetsBinding.instance.addPostFrameCallback((_) {
+                              if (!mounted) return;
+
+                              if (result.success) {
+                                // Refresh related providers after modal has been dismissed.
+                                ref.invalidate(
+                                  customerRatingFormProvider(widget.ticketId),
+                                );
+                                ref.invalidate(
+                                  customerTicketDetailProvider(widget.ticketId),
+                                );
+
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Thank you for your rating!'),
+                                    backgroundColor: AppColors.success,
+                                  ),
+                                );
+                              } else {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      result.message ?? 'Failed to submit rating',
+                                    ),
+                                    backgroundColor: AppColors.error,
+                                  ),
+                                );
+                              }
+                            });
                           },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
