@@ -5,10 +5,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:html_editor_enhanced/html_editor.dart';
 import 'package:helpdesk_mobile/config/app_colors.dart';
-import 'package:helpdesk_mobile/data/models/category_model.dart';
 import 'package:helpdesk_mobile/data/models/employee_model.dart';
-import 'package:helpdesk_mobile/data/repository/customer/customer_ticket_repository.dart';
-import 'package:helpdesk_mobile/states/customer/customer_category_provider.dart';
 import 'package:helpdesk_mobile/states/customer/customer_employee_provider.dart';
 import 'package:helpdesk_mobile/states/customer/customer_ticket_provider.dart';
 import 'package:helpdesk_mobile/ui/shared/widgets/html_editor_field.dart';
@@ -61,20 +58,10 @@ class _CustomerCreateTicketScreenState
   final _messageFieldKey = GlobalKey<HtmlEditorFieldState>();
   final _requestToOtherController = TextEditingController();
 
-  CategoryModel? _selectedCategory;
-  SubCategoryModel? _selectedSubCategory;
-  ProjectModel? _selectedProject;
   EmployeeModel? _selectedEmployee;
-  String? _selectedEnvatoSupport;
   bool _isRequestToOther = false;
   final List<File> _selectedFiles = [];
   bool _isSubmitting = false;
-
-  // Category extras state
-  List<SubCategoryModel> _availableSubCategories = [];
-  List<ProjectModel> _availableProjects = [];
-  bool _envatoRequired = false;
-  bool _loadingExtras = false;
 
   // Request To helper
   RequestToOption? _selectedRequestTo;
@@ -82,9 +69,8 @@ class _CustomerCreateTicketScreenState
   @override
   void initState() {
     super.initState();
-    // Load categories and employees
+    // Load employees
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(customerCategoryProvider.notifier).fetchCategories();
       ref.read(customerEmployeeProvider.notifier).fetchEmployees();
     });
   }
@@ -180,33 +166,6 @@ class _CustomerCreateTicketScreenState
     });
   }
 
-  Future<void> _fetchCategoryExtras(int categoryId) async {
-    setState(() => _loadingExtras = true);
-
-    final repository = CustomerTicketRepository();
-    final response = await repository.getCategoryExtras(categoryId);
-
-    setState(() {
-      _loadingExtras = false;
-
-      if (response.success && response.data != null) {
-        _availableSubCategories = response.data!.subCategories;
-        _availableProjects = response.data!.projects;
-        _envatoRequired = response.data!.envatoRequired;
-
-        print('===== EXTRAS LOADED =====');
-        print('SubCategories: ${_availableSubCategories.length}');
-        print('Projects: ${_availableProjects.length}');
-        print('Envato Required: $_envatoRequired');
-        print('========================');
-      } else {
-        _availableSubCategories = [];
-        _availableProjects = [];
-        _envatoRequired = false;
-      }
-    });
-  }
-
   Future<void> _submitTicket() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -214,16 +173,6 @@ class _CustomerCreateTicketScreenState
     final messageValid =
         await _messageFieldKey.currentState?.validate() ?? false;
     if (!messageValid) return;
-
-    if (_selectedCategory == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select a category'),
-          backgroundColor: AppColors.error,
-        ),
-      );
-      return;
-    }
 
     if (_isRequestToOther && _requestToOtherController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -238,11 +187,10 @@ class _CustomerCreateTicketScreenState
     setState(() => _isSubmitting = true);
 
     final messageHtml = await _messageController.getText();
-    final success = await ref
+    final response = await ref
         .read(customerTicketProvider.notifier)
         .createTicket(
           subject: _subjectController.text.trim(),
-          categoryId: _selectedCategory!.id,
           message: messageHtml,
           requestToUserId: _isRequestToOther
               ? 'other'
@@ -250,16 +198,13 @@ class _CustomerCreateTicketScreenState
           requestToOther: _isRequestToOther
               ? _requestToOtherController.text.trim()
               : null,
-          project: _selectedProject?.name,
-          subCategory: _selectedSubCategory?.id,
-          envatoSupport: _selectedEnvatoSupport,
           files: _selectedFiles.isNotEmpty ? _selectedFiles : null,
         );
 
     setState(() => _isSubmitting = false);
 
     if (mounted) {
-      if (success) {
+      if (response.success) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Ticket created successfully'),
@@ -269,9 +214,10 @@ class _CustomerCreateTicketScreenState
         // Pop with true to indicate success
         Navigator.pop(context, true);
       } else {
+        final errorText = response.message ?? 'Failed to create ticket';
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to create ticket'),
+          SnackBar(
+            content: Text(errorText),
             backgroundColor: AppColors.error,
           ),
         );
@@ -281,12 +227,11 @@ class _CustomerCreateTicketScreenState
 
   @override
   Widget build(BuildContext context) {
-    final categoryState = ref.watch(customerCategoryProvider);
     final employeeState = ref.watch(customerEmployeeProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Create Ticket')),
-      body: categoryState.isLoading || employeeState.isLoading
+      body: employeeState.isLoading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
               padding: EdgeInsets.only(
@@ -317,101 +262,6 @@ class _CustomerCreateTicketScreenState
                       maxLength: 200,
                     ),
                     const SizedBox(height: 16),
-
-                    // Category - Searchable
-                    SearchableDropdown<CategoryModel>(
-                      labelText: 'Category *',
-                      prefixIcon: Icons.category,
-                      selectedItem: _selectedCategory,
-                      items: categoryState.categories,
-                      itemAsString: (category) => category.name,
-                      searchHint: 'Search category...',
-                      onChanged: (value) async {
-                        if (value != null) {
-                          setState(() {
-                            _selectedCategory = value;
-                            _selectedSubCategory = null;
-                            _selectedProject = null;
-                            _selectedEnvatoSupport = null;
-                          });
-
-                          // Fetch category extras
-                          await _fetchCategoryExtras(value.id);
-                        } else {
-                          setState(() {
-                            _selectedCategory = null;
-                            _selectedSubCategory = null;
-                            _selectedProject = null;
-                            _availableSubCategories = [];
-                            _availableProjects = [];
-                            _envatoRequired = false;
-                          });
-                        }
-                      },
-                      validator: (value) {
-                        if (value == null) return 'Category is required';
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Loading indicator for extras
-                    if (_loadingExtras)
-                      const Center(
-                        child: Padding(
-                          padding: EdgeInsets.all(16.0),
-                          child: CircularProgressIndicator(),
-                        ),
-                      ),
-
-                    // SubCategory (conditional)
-                    if (!_loadingExtras && _availableSubCategories.isNotEmpty)
-                      SearchableDropdown<SubCategoryModel>(
-                        labelText: 'Sub Category *',
-                        prefixIcon: Icons.category_outlined,
-                        selectedItem: _selectedSubCategory,
-                        items: _availableSubCategories,
-                        itemAsString: (sub) => sub.name,
-                        searchHint: 'Search sub category...',
-                        onChanged: (value) {
-                          setState(() {
-                            _selectedSubCategory = value;
-                          });
-                        },
-                        validator: (value) {
-                          if (_availableSubCategories.isNotEmpty &&
-                              value == null) {
-                            return 'Sub category is required';
-                          }
-                          return null;
-                        },
-                      ),
-                    if (!_loadingExtras && _availableSubCategories.isNotEmpty)
-                      const SizedBox(height: 16),
-
-                    // Project (conditional)
-                    if (!_loadingExtras && _availableProjects.isNotEmpty)
-                      SearchableDropdown<ProjectModel>(
-                        labelText: 'Project *',
-                        prefixIcon: Icons.work,
-                        selectedItem: _selectedProject,
-                        items: _availableProjects,
-                        itemAsString: (project) => project.name,
-                        searchHint: 'Search project...',
-                        onChanged: (value) {
-                          setState(() {
-                            _selectedProject = value;
-                          });
-                        },
-                        validator: (value) {
-                          if (_availableProjects.isNotEmpty && value == null) {
-                            return 'Project is required';
-                          }
-                          return null;
-                        },
-                      ),
-                    if (!_loadingExtras && _availableProjects.isNotEmpty)
-                      const SizedBox(height: 16),
 
                     // Message
                     HtmlEditorField(
@@ -502,38 +352,6 @@ class _CustomerCreateTicketScreenState
                         },
                       ),
                     if (_isRequestToOther) const SizedBox(height: 16),
-
-                    // Envato Support (conditional based on category)
-                    if (_envatoRequired)
-                      DropdownButtonFormField<String>(
-                        initialValue: _selectedEnvatoSupport,
-                        decoration: const InputDecoration(
-                          labelText: 'Envato Support *',
-                          prefixIcon: Icon(Icons.support),
-                        ),
-                        items: const [
-                          DropdownMenuItem(
-                            value: 'Supported',
-                            child: Text('Supported'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'Not Supported',
-                            child: Text('Not Supported'),
-                          ),
-                        ],
-                        onChanged: (value) {
-                          setState(() {
-                            _selectedEnvatoSupport = value;
-                          });
-                        },
-                        validator: (value) {
-                          if (_envatoRequired && value == null) {
-                            return 'Envato support is required';
-                          }
-                          return null;
-                        },
-                      ),
-                    if (_envatoRequired) const SizedBox(height: 16),
 
                     // Attachment Buttons
                     Row(

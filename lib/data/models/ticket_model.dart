@@ -1,6 +1,7 @@
 import 'package:helpdesk_mobile/data/enums/ticket_status.dart';
 
 class TicketModel {
+  final int? id;
   final String ticketId;
   final String subject;
   final String? message; // Optional - not in list response
@@ -19,13 +20,24 @@ class TicketModel {
   final String? customerName;
   final String? customerEmail;
   final String? assignedTo;
+  final String? ticketOption;
   final DateTime createdAt;
   final DateTime? updatedAt;
   final DateTime? lastReply; // From API: last_reply
   final List<TicketReplyModel>? replies;
   final List<AttachmentModel>? attachments;
+  // New fields from API update
+  final CategoryInfoModel? categoryInfo;
+  final RequestToModel? requestTo;
+  final TicketTimestampsModel? timestamps;
+  final ActivitySummaryModel? activitySummary;
+  final SlaSummaryModel? slaSummary;
+  final TicketPointsModel? points;
+  final TicketPermissionsModel? permissions;
+  final TicketCsatModel? csat;
 
   TicketModel({
+    this.id,
     required this.ticketId,
     required this.subject,
     this.message,
@@ -44,15 +56,25 @@ class TicketModel {
     this.customerName,
     this.customerEmail,
     this.assignedTo,
+    this.ticketOption,
     required this.createdAt,
     this.updatedAt,
     this.lastReply,
     this.replies,
     this.attachments,
+    this.categoryInfo,
+    this.requestTo,
+    this.timestamps,
+    this.activitySummary,
+    this.slaSummary,
+    this.points,
+    this.permissions,
+    this.csat,
   });
 
   factory TicketModel.fromJson(Map<String, dynamic> json) {
     return TicketModel(
+      id: json['id'],
       ticketId: json['ticket_id']?.toString() ?? json['id']?.toString() ?? '',
       subject: json['subject'] ?? '',
       message: json['message'], // Optional in list response
@@ -74,6 +96,7 @@ class TicketModel {
       customerName: json['customer_name'] ?? json['customer']?['name'],
       customerEmail: json['customer_email'] ?? json['customer']?['email'],
       assignedTo: json['assigned_to'],
+      ticketOption: json['ticket_option']?.toString(),
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'])
           : DateTime.now(),
@@ -98,11 +121,36 @@ class TicketModel {
               .map((e) => AttachmentModel.fromJson(e))
               .toList()
           : null,
+      categoryInfo: json['category_info'] != null
+          ? CategoryInfoModel.fromJson(json['category_info'])
+          : null,
+      requestTo: json['request_to'] != null && json['request_to'] is Map
+          ? RequestToModel.fromJson(json['request_to'])
+          : null,
+      timestamps: json['timestamps'] != null
+          ? TicketTimestampsModel.fromJson(json['timestamps'])
+          : null,
+      activitySummary: json['activity_summary'] != null
+          ? ActivitySummaryModel.fromJson(json['activity_summary'])
+          : null,
+      slaSummary: json['sla_summary'] != null
+          ? SlaSummaryModel.fromJson(json['sla_summary'])
+          : null,
+      points: json['points'] != null
+          ? TicketPointsModel.fromJson(json['points'])
+          : null,
+      permissions: json['permissions'] != null
+          ? TicketPermissionsModel.fromJson(json['permissions'])
+          : null,
+        csat: json['csat'] != null && json['csat'] is Map
+          ? TicketCsatModel.fromJson(json['csat'] as Map<String, dynamic>)
+          : null,
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
+      'id': id,
       'ticket_id': ticketId,
       'subject': subject,
       'message': message,
@@ -118,10 +166,12 @@ class TicketModel {
       'customer_name': customerName,
       'customer_email': customerEmail,
       'assigned_to': assignedTo,
+      'ticket_option': ticketOption,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt?.toIso8601String(),
       'replies': replies?.map((e) => e.toJson()).toList(),
       'attachments': attachments?.map((e) => e.toJson()).toList(),
+      'csat': csat?.toJson(),
     };
   }
 }
@@ -248,5 +298,356 @@ class AttachmentModel {
         ext.endsWith('.png') ||
         ext.endsWith('.gif') ||
         ext.endsWith('.webp');
+  }
+}
+
+// ---------------------------------------------------------------------------
+// New Model Classes (API update)
+// ---------------------------------------------------------------------------
+
+class CategoryInfoModel {
+  final int id;
+  final String name;
+  final String? priority;
+
+  CategoryInfoModel({required this.id, required this.name, this.priority});
+
+  factory CategoryInfoModel.fromJson(Map<String, dynamic> json) {
+    return CategoryInfoModel(
+      id: json['id'] ?? 0,
+      name: json['name'] ?? '',
+      priority: json['priority'],
+    );
+  }
+}
+
+class RequestToModel {
+  final dynamic userId; // int or String 'other'
+  final String? other;
+  final String? name;
+
+  RequestToModel({this.userId, this.other, this.name});
+
+  factory RequestToModel.fromJson(Map<String, dynamic> json) {
+    return RequestToModel(
+      userId: json['user_id'],
+      other: json['other'],
+      name: json['name'],
+    );
+  }
+
+  String get displayName => name ?? other ?? userId?.toString() ?? '';
+}
+
+class TicketTimestampsModel {
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+  final DateTime? lastReplyAt;
+  final DateTime? assignedAt;
+  final DateTime? inProgressAt;
+  final DateTime? solvedAt;
+  final DateTime? reopenAt;
+  final DateTime? holdAt;
+  final DateTime? closedAt;
+  final DateTime? firstResponseAt;
+
+  TicketTimestampsModel({
+    this.createdAt,
+    this.updatedAt,
+    this.lastReplyAt,
+    this.assignedAt,
+    this.inProgressAt,
+    this.solvedAt,
+    this.reopenAt,
+    this.holdAt,
+    this.closedAt,
+    this.firstResponseAt,
+  });
+
+  static DateTime? _parse(dynamic v) =>
+      v != null ? DateTime.tryParse(v.toString()) : null;
+
+  factory TicketTimestampsModel.fromJson(Map<String, dynamic> json) {
+    return TicketTimestampsModel(
+      createdAt: _parse(json['created_at']),
+      updatedAt: _parse(json['updated_at']),
+      lastReplyAt: _parse(json['last_reply_at']),
+      assignedAt: _parse(json['assigned_at']),
+      inProgressAt: _parse(json['in_progress_at']),
+      solvedAt: _parse(json['solved_at']),
+      reopenAt: _parse(json['reopen_at']),
+      holdAt: _parse(json['hold_at']),
+      closedAt: _parse(json['closed_at']),
+      firstResponseAt: _parse(json['first_response_at']),
+    );
+  }
+}
+
+class LastResponderModel {
+  final int id;
+  final String name;
+  final String? email;
+
+  LastResponderModel({required this.id, required this.name, this.email});
+
+  factory LastResponderModel.fromJson(Map<String, dynamic> json) {
+    return LastResponderModel(
+      id: json['id'] ?? 0,
+      name: json['name'] ?? '',
+      email: json['email'],
+    );
+  }
+}
+
+class ActivitySummaryModel {
+  final int replyCount;
+  final bool hasReplies;
+  final DateTime? lastReplyAt;
+  final LastResponderModel? lastResponder;
+  final String workflowState; // 'open', 'on_hold', 'closed'
+  final String waitingFor;    // 'customer', 'internal', 'none'
+  final bool isWaitingCustomer;
+  final bool isWaitingInternal;
+  final bool isClosed;
+  final bool isOnHold;
+
+  ActivitySummaryModel({
+    required this.replyCount,
+    required this.hasReplies,
+    this.lastReplyAt,
+    this.lastResponder,
+    required this.workflowState,
+    required this.waitingFor,
+    required this.isWaitingCustomer,
+    required this.isWaitingInternal,
+    required this.isClosed,
+    required this.isOnHold,
+  });
+
+  factory ActivitySummaryModel.fromJson(Map<String, dynamic> json) {
+    return ActivitySummaryModel(
+      replyCount: json['reply_count'] ?? 0,
+      hasReplies: json['has_replies'] ?? false,
+      lastReplyAt: json['last_reply_at'] != null
+          ? DateTime.tryParse(json['last_reply_at'].toString())
+          : null,
+      lastResponder: json['last_responder'] != null
+          ? LastResponderModel.fromJson(json['last_responder'])
+          : null,
+      workflowState: json['workflow_state'] ?? 'open',
+      waitingFor: json['waiting_for'] ?? 'none',
+      isWaitingCustomer: json['is_waiting_customer'] ?? false,
+      isWaitingInternal: json['is_waiting_internal'] ?? false,
+      isClosed: json['is_closed'] ?? false,
+      isOnHold: json['is_on_hold'] ?? false,
+    );
+  }
+}
+
+class SlaSummaryModel {
+  final String mode;
+  final bool isActive;
+  final String? legacyOverdueStatus;
+  final bool isOverdue;
+  final DateTime? autoOverdueAt;
+  final DateTime? firstResponseAt;
+  final DateTime? responseDueAt;
+  final String? responseStatus;    // 'Met', 'Breached', 'Pending'
+  final DateTime? resolutionDueAt;
+  final String? resolutionStatus;  // 'Met', 'Breached', 'Pending'
+  final bool isPaused;
+  final String? pauseReasonCode;
+  final String? pauseReasonLabel;
+  final String? pauseReasonNote;
+  final int? resolutionTargetWorkingDays;
+  final int escalationLevel;
+
+  SlaSummaryModel({
+    required this.mode,
+    required this.isActive,
+    this.legacyOverdueStatus,
+    required this.isOverdue,
+    this.autoOverdueAt,
+    this.firstResponseAt,
+    this.responseDueAt,
+    this.responseStatus,
+    this.resolutionDueAt,
+    this.resolutionStatus,
+    required this.isPaused,
+    this.pauseReasonCode,
+    this.pauseReasonLabel,
+    this.pauseReasonNote,
+    this.resolutionTargetWorkingDays,
+    required this.escalationLevel,
+  });
+
+  static DateTime? _parse(dynamic v) =>
+      v != null ? DateTime.tryParse(v.toString()) : null;
+
+  factory SlaSummaryModel.fromJson(Map<String, dynamic> json) {
+    return SlaSummaryModel(
+      mode: json['mode'] ?? '',
+      isActive: json['is_active'] ?? false,
+      legacyOverdueStatus: json['legacy_overdue_status'],
+      isOverdue: json['is_overdue'] ?? false,
+      autoOverdueAt: _parse(json['auto_overdue_at']),
+      firstResponseAt: _parse(json['first_response_at']),
+      responseDueAt: _parse(json['response_due_at']),
+      responseStatus: json['response_status'],
+      resolutionDueAt: _parse(json['resolution_due_at']),
+      resolutionStatus: json['resolution_status'],
+      isPaused: json['is_paused'] ?? false,
+      pauseReasonCode: json['pause_reason_code'],
+      pauseReasonLabel: json['pause_reason_label'],
+      pauseReasonNote: json['pause_reason_note'],
+      resolutionTargetWorkingDays: json['resolution_target_working_days'],
+      escalationLevel: json['escalation_level'] ?? 0,
+    );
+  }
+}
+
+class TicketPointsModel {
+  final int? profileId;
+  final String? profileName;
+  final String? responseStatus;
+  final int? responsePoints;
+  final DateTime? responseAwardedAt;
+  final int? resolutionTargetWorkingDays;
+  final String? resolutionStatus;
+  final int? resolutionPoints;
+  final DateTime? resolutionAwardedAt;
+  final int? customerSatisfactionPoints;
+  final DateTime? customerSatisfactionAwardedAt;
+  final int totalPoints;
+
+  TicketPointsModel({
+    this.profileId,
+    this.profileName,
+    this.responseStatus,
+    this.responsePoints,
+    this.responseAwardedAt,
+    this.resolutionTargetWorkingDays,
+    this.resolutionStatus,
+    this.resolutionPoints,
+    this.resolutionAwardedAt,
+    this.customerSatisfactionPoints,
+    this.customerSatisfactionAwardedAt,
+    required this.totalPoints,
+  });
+
+  static DateTime? _parse(dynamic v) =>
+      v != null ? DateTime.tryParse(v.toString()) : null;
+
+  factory TicketPointsModel.fromJson(Map<String, dynamic> json) {
+    return TicketPointsModel(
+      profileId: json['profile_id'],
+      profileName: json['profile_name'],
+      responseStatus: json['response_status'],
+      responsePoints: json['response_points'],
+      responseAwardedAt: _parse(json['response_awarded_at']),
+      resolutionTargetWorkingDays: json['resolution_target_working_days'],
+      resolutionStatus: json['resolution_status'],
+      resolutionPoints: json['resolution_points'],
+      resolutionAwardedAt: _parse(json['resolution_awarded_at']),
+      customerSatisfactionPoints: json['customer_satisfaction_points'],
+      customerSatisfactionAwardedAt:
+          _parse(json['customer_satisfaction_awarded_at']),
+      totalPoints: json['total_points'] ?? 0,
+    );
+  }
+}
+
+/// Unified permissions model — works for both customer and internal tickets.
+/// Fields not applicable to a particular role will simply be false.
+class TicketPermissionsModel {
+  // Customer permissions
+  final bool canReply;
+  final bool canClose;
+  final bool canReopen;
+  final bool canEditLatestReply;
+  final bool canRate;
+  // Internal permissions
+  final bool canHold;
+  final bool canResume;
+  final bool canCancel;
+  final bool canBackNew;
+  final bool canEditResolutionTargetWorkingDays;
+  final bool canViewCsat;
+
+  TicketPermissionsModel({
+    this.canReply = false,
+    this.canClose = false,
+    this.canReopen = false,
+    this.canEditLatestReply = false,
+    this.canRate = false,
+    this.canHold = false,
+    this.canResume = false,
+    this.canCancel = false,
+    this.canBackNew = false,
+    this.canEditResolutionTargetWorkingDays = false,
+    this.canViewCsat = false,
+  });
+
+  factory TicketPermissionsModel.fromJson(Map<String, dynamic> json) {
+    return TicketPermissionsModel(
+      canReply: json['can_reply'] ?? false,
+      canClose: json['can_close'] ?? false,
+      canReopen: json['can_reopen'] ?? false,
+      canEditLatestReply: json['can_edit_latest_reply'] ?? false,
+      canRate: json['can_rate'] ?? false,
+      canHold: json['can_hold'] ?? false,
+      canResume: json['can_resume'] ?? false,
+      canCancel: json['can_cancel'] ?? false,
+      canBackNew: json['can_back_new'] ?? false,
+      canEditResolutionTargetWorkingDays:
+          json['can_edit_resolution_target_working_days'] ?? false,
+      canViewCsat: json['can_view_csat'] ?? false,
+    );
+  }
+}
+
+class TicketCsatModel {
+  final String status; // pending, rated, all
+  final bool isRated;
+  final int? ratingId;
+  final int? rating;
+  final String? comment;
+  final DateTime? ratedAt;
+  final bool canSubmit;
+
+  TicketCsatModel({
+    required this.status,
+    required this.isRated,
+    this.ratingId,
+    this.rating,
+    this.comment,
+    this.ratedAt,
+    this.canSubmit = false,
+  });
+
+  factory TicketCsatModel.fromJson(Map<String, dynamic> json) {
+    return TicketCsatModel(
+      status: json['status']?.toString() ?? 'pending',
+      isRated: json['is_rated'] ?? false,
+      ratingId: json['rating_id'],
+      rating: json['rating'],
+      comment: json['comment']?.toString(),
+      ratedAt: json['rated_at'] != null
+          ? DateTime.tryParse(json['rated_at'].toString())
+          : null,
+      canSubmit: json['can_submit'] ?? false,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'status': status,
+      'is_rated': isRated,
+      'rating_id': ratingId,
+      'rating': rating,
+      'comment': comment,
+      'rated_at': ratedAt?.toIso8601String(),
+      'can_submit': canSubmit,
+    };
   }
 }

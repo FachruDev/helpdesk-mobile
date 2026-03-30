@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_html/flutter_html.dart';
 import 'package:helpdesk_mobile/config/app_colors.dart';
+import 'package:helpdesk_mobile/data/models/rating_model.dart';
 import 'package:helpdesk_mobile/data/models/ticket_model.dart';
 import 'package:helpdesk_mobile/states/customer/customer_ticket_provider.dart';
 import 'package:helpdesk_mobile/states/customer/customer_ticket_replies_provider.dart';
@@ -58,9 +59,9 @@ class _CustomerTicketDetailScreenState
       _visibleRepliesCount = 5;
     });
     // Refresh ticket detail
-    ref.refresh(customerTicketDetailProvider(widget.ticketId));
+    ref.invalidate(customerTicketDetailProvider(widget.ticketId));
     // Refresh replies
-    ref.refresh(customerTicketRepliesProvider(widget.ticketId));
+    ref.invalidate(customerTicketRepliesProvider(widget.ticketId));
   }
 
   Future<void> _pickFiles() async {
@@ -403,7 +404,7 @@ class _CustomerTicketDetailScreenState
                 // Closed ticket notice
                 if (isTicketClosed) ...[
                   const SizedBox(height: 16),
-                  _buildClosedTicketNotice(ticket.status.value),
+                  _buildClosedTicketNotice(ticket.status.value, ticket.replyStatus),
                 ],
               ],
             ),
@@ -847,50 +848,367 @@ class _CustomerTicketDetailScreenState
     );
   }
 
-  Widget _buildClosedTicketNotice(String statusValue) {
+  Widget _buildClosedTicketNotice(String statusValue, String? replyStatus) {
     final isCancelled = statusValue.toLowerCase() == 'cancelled';
-    
+    final statusLower = statusValue.toLowerCase();
+    final replyStatusLower = (replyStatus ?? '').toLowerCase();
+    final isClosedOrSolved =
+        statusLower == 'closed' ||
+        statusLower == 'solved' ||
+        replyStatusLower == 'solved';
+    final ratingFormAsync =
+        ref.watch(customerRatingFormProvider(widget.ticketId));
+
     return Card(
-      color: (isCancelled ? AppColors.error : AppColors.statusClosed).withOpacity(0.1),
+      color: (isCancelled ? AppColors.error : const Color.fromARGB(255, 252, 245, 229)),
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(
-              isCancelled ? Icons.cancel_outlined : Icons.lock_outline,
-              color: isCancelled ? AppColors.error : AppColors.statusClosed,
-              size: 24,
+            Row(
+              children: [
+                Icon(
+                  isCancelled ? Icons.cancel_outlined : Icons.lock_outline,
+                  color: isCancelled ? AppColors.error : AppColors.statusClosed,
+                  size: 24,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        isCancelled ? 'Ticket Cancelled' : 'Ticket Closed',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: isCancelled ? AppColors.error : AppColors.statusClosed,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        isCancelled
+                            ? 'This ticket has been cancelled. No further actions can be taken.'
+                            : 'This ticket has been closed. No further actions can be taken.',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    isCancelled ? 'Ticket Cancelled' : 'Ticket Closed',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: isCancelled ? AppColors.error : AppColors.statusClosed,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    isCancelled 
-                        ? 'This ticket has been cancelled. No further actions can be taken.'
-                        : 'This ticket has been closed. No further actions can be taken.',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
+            // CSAT only for Closed/Solved flow (legacy fallback: replystatus=Solved)
+            if (!isCancelled && isClosedOrSolved)
+              ratingFormAsync.when(
+                data: (form) {
+                  if (form == null) return const SizedBox.shrink();
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const SizedBox(height: 12),
+                      const Divider(),
+                      const SizedBox(height: 8),
+                      if (form.status.alreadyRated && form.existingRating != null)
+                        _buildRatedBanner(form.existingRating!)
+                      else if (form.status.canRate)
+                        ElevatedButton.icon(
+                          onPressed: () => _showRatingSheet(form),
+                          icon: const Icon(Icons.star_rounded),
+                          label: const Text('Rate This Ticket'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.warning,
+                            foregroundColor: AppColors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                        ),
+                    ],
+                  );
+                },
+                loading: () => const Padding(
+                  padding: EdgeInsets.only(top: 12),
+                  child: Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))),
+                ),
+                error: (_, _) => const SizedBox.shrink(),
               ),
-            ),
           ],
         ),
       ),
     );
+  }
+
+  Widget _buildRatedBanner(ExistingRating existing) {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: AppColors.success.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.success.withOpacity(0.3)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.check_circle, color: AppColors.success, size: 20),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'You rated this ticket ${existing.rating}/5',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.success,
+                  ),
+                ),
+                if (existing.submittedAt != null)
+                  Text(
+                    'on ${DateFormat('dd MMM yyyy').format(existing.submittedAt!)}',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: Color.fromARGB(255, 26, 101, 24),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: List.generate(5, (i) {
+              return Icon(
+                i < existing.rating ? Icons.star_rounded : Icons.star_outline_rounded,
+                color: AppColors.warning,
+                size: 18,
+              );
+            }),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showRatingSheet(RatingFormModel form) async {
+    int? selectedRating;
+    final commentController = TextEditingController();
+    bool isSubmitting = false;
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) {
+          return Padding(
+            padding: EdgeInsets.only(
+              left: 20,
+              right: 20,
+              top: 24,
+              bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Title
+                Row(
+                  children: [
+                    const Icon(Icons.star_rounded, color: AppColors.warning),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Rate Your Experience',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(ctx),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  form.ticket.subject,
+                  style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 20),
+
+                // Star rating row
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: form.ratingOptions.map((option) {
+                    final isSelected = selectedRating == option.value;
+                    return GestureDetector(
+                      onTap: () => setSheetState(() => selectedRating = option.value),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            isSelected ? Icons.star_rounded : Icons.star_outline_rounded,
+                            color: isSelected
+                                ? AppColors.warning
+                                : AppColors.textHint,
+                            size: 42,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${option.value}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: isSelected
+                                  ? AppColors.warning
+                                  : AppColors.textHint,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                ),
+
+                // Option label
+                if (selectedRating != null) ...[
+                  const SizedBox(height: 8),
+                  Center(
+                    child: Text(
+                      form.ratingOptions
+                          .firstWhere(
+                            (o) => o.value == selectedRating,
+                            orElse: () => RatingOption(value: 0, label: '', points: 0),
+                          )
+                          .label,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.warning,
+                      ),
+                    ),
+                  ),
+                ],
+
+                const SizedBox(height: 16),
+
+                // Comment field
+                TextField(
+                  controller: commentController,
+                  maxLines: 3,
+                  decoration: InputDecoration(
+                    labelText: 'Comment (optional)',
+                    hintText: 'Share your experience...',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    filled: true,
+                    fillColor: AppColors.background,
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Submit button
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: selectedRating == null || isSubmitting
+                        ? null
+                        : () async {
+                            setSheetState(() => isSubmitting = true);
+                            final repo = ref.read(customerTicketRepositoryProvider);
+
+                            final result = await repo.submitRating(
+                              ticketId: widget.ticketId,
+                              rating: selectedRating!,
+                              comment: commentController.text.trim().isEmpty
+                                  ? null
+                                  : commentController.text.trim(),
+                            );
+
+                            if (ctx.mounted) {
+                              setSheetState(() => isSubmitting = false);
+                            }
+
+                            if (ctx.mounted && Navigator.of(ctx).canPop()) {
+                              Navigator.of(ctx).pop();
+                            }
+
+                            if (!mounted) return;
+
+                            WidgetsBinding.instance.addPostFrameCallback((_) {
+                              if (!mounted) return;
+
+                              if (result.success) {
+                                // Refresh related providers after modal has been dismissed.
+                                ref.invalidate(
+                                  customerRatingFormProvider(widget.ticketId),
+                                );
+                                ref.invalidate(
+                                  customerTicketDetailProvider(widget.ticketId),
+                                );
+
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Thank you for your rating!'),
+                                    backgroundColor: AppColors.success,
+                                  ),
+                                );
+                              } else {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      result.message ?? 'Failed to submit rating',
+                                    ),
+                                    backgroundColor: AppColors.error,
+                                  ),
+                                );
+                              }
+                            });
+                          },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: AppColors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    child: isSubmitting
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppColors.white,
+                            ),
+                          )
+                        : const Text(
+                            'Submit Rating',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+    commentController.dispose();
   }
 
   Widget _buildReplyInput(TicketModel ticket) {

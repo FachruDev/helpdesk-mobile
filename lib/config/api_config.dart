@@ -4,7 +4,7 @@ class ApiConfig {
   // Base URL from .env
   static String get baseUrl => const String.fromEnvironment(
         'API_URL',
-        defaultValue: 'http://143.198.212.197:8001',
+        defaultValue: 'https://helpdesk.galenium.com',
       );
 
   // Customer Endpoints
@@ -29,7 +29,15 @@ class ApiConfig {
   
   static String customerEditReply(String ticketId, int commentId) =>
       '/api/mobile/tickets/$ticketId/reply/$commentId/edit';
-  
+
+  static String customerRatingForm(String ticketId) =>
+      '/api/mobile/tickets/$ticketId/rating/form';
+
+  static String customerRating(String ticketId) =>
+      '/api/mobile/tickets/$ticketId/rating';
+
+  static const String customerCsatTickets = '/api/mobile/tickets/csat';
+
   // Customer FCM Endpoints
   static const String customerFcmToken = '/api/mobile/fcm/token';
 
@@ -55,6 +63,14 @@ class ApiConfig {
   
   static String internalEditReply(String ticketId, int commentId) =>
       '/api/mobile/internal/tickets/$ticketId/reply/$commentId/edit';
+
+  static const String internalCsatTickets = '/api/mobile/internal/tickets/csat';
+
+  static String internalCsatRemind(int id) =>
+      '/api/mobile/internal/tickets/csat/remind/$id';
+
+  static const String internalCsatRemindAll =
+      '/api/mobile/internal/tickets/csat/remind-all';
   
   // Internal FCM Endpoints
   static const String internalFcmToken = '/api/mobile/internal/fcm/token';

@@ -1,5 +1,7 @@
 import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:helpdesk_mobile/data/models/api_response.dart';
+import 'package:helpdesk_mobile/data/models/rating_model.dart';
 import 'package:helpdesk_mobile/data/models/ticket_model.dart';
 import 'package:helpdesk_mobile/data/repository/customer/customer_ticket_repository.dart';
 
@@ -16,6 +18,7 @@ class CustomerTicketState {
   final String? errorMessage;
   final bool hasMore;
   final int currentPage;
+  final int lastPage;
 
   CustomerTicketState({
     this.tickets = const [],
@@ -24,6 +27,7 @@ class CustomerTicketState {
     this.errorMessage,
     this.hasMore = true,
     this.currentPage = 1,
+    this.lastPage = 1,
   });
 
   CustomerTicketState copyWith({
@@ -33,6 +37,7 @@ class CustomerTicketState {
     String? errorMessage,
     bool? hasMore,
     int? currentPage,
+    int? lastPage,
   }) {
     return CustomerTicketState(
       tickets: tickets ?? this.tickets,
@@ -41,6 +46,7 @@ class CustomerTicketState {
       errorMessage: errorMessage,
       hasMore: hasMore ?? this.hasMore,
       currentPage: currentPage ?? this.currentPage,
+      lastPage: lastPage ?? this.lastPage,
     );
   }
 }
@@ -79,11 +85,13 @@ class CustomerTicketNotifier extends Notifier<CustomerTicketState> {
       );
 
       if (response.success && response.data != null) {
+        final lastPage = response.meta?.lastPage ?? 1;
         state = state.copyWith(
           isLoading: false,
           tickets: response.data!,
           currentPage: 1,
-          hasMore: response.data!.length >= 20,
+          lastPage: lastPage,
+          hasMore: 1 < lastPage,
           errorMessage: null,
         );
       } else {
@@ -123,12 +131,14 @@ class CustomerTicketNotifier extends Notifier<CustomerTicketState> {
       );
 
       if (response.success && response.data != null) {
+        final lastPage = response.meta?.lastPage ?? state.lastPage;
         final newTickets = [...state.tickets, ...response.data!];
         state = state.copyWith(
           isLoadingMore: false,
           tickets: newTickets,
           currentPage: nextPage,
-          hasMore: response.data!.length >= 20,
+          lastPage: lastPage,
+          hasMore: nextPage < lastPage,
         );
       } else {
         state = state.copyWith(isLoadingMore: false);
@@ -139,33 +149,23 @@ class CustomerTicketNotifier extends Notifier<CustomerTicketState> {
   }
 
   // Create ticket
-  Future<bool> createTicket({
+  Future<ApiResponse<TicketModel>> createTicket({
     required String subject,
-    required int categoryId,
     required String message,
     required String requestToUserId,
     String? requestToOther,
-    String? project,
-    int? subCategory,
-    String? envatoSupport,
     List<File>? files,
   }) async {
     try {
-      final response = await _repository.createTicket(
+      return await _repository.createTicket(
         subject: subject,
-        categoryId: categoryId,
         message: message,
         requestToUserId: requestToUserId,
         requestToOther: requestToOther,
-        project: project,
-        subCategory: subCategory,
-        envatoSupport: envatoSupport,
         files: files,
       );
-
-      return response.success;
     } catch (e) {
-      return false;
+      return ApiResponse.error('Network error: ${e.toString()}');
     }
   }
 
@@ -194,4 +194,13 @@ final customerTicketDetailProvider = FutureProvider.family<TicketModel?, String>
 // Reply Ticket Provider
 final customerReplyTicketProvider = Provider<CustomerTicketRepository>((ref) {
   return ref.watch(customerTicketRepositoryProvider);
+});
+
+// CSAT Rating Form Provider (auto-fetched per ticket)
+final customerRatingFormProvider =
+    FutureProvider.family<RatingFormModel?, String>((ref, ticketId) async {
+  final repository = ref.watch(customerTicketRepositoryProvider);
+  final response = await repository.getRatingForm(ticketId);
+  if (response.success && response.data != null) return response.data;
+  return null;
 });

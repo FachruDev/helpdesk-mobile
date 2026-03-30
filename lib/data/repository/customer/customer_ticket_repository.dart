@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:helpdesk_mobile/config/api_config.dart';
 import 'package:helpdesk_mobile/data/models/api_response.dart';
+import 'package:helpdesk_mobile/data/models/rating_model.dart';
 import 'package:helpdesk_mobile/data/models/ticket_model.dart';
 import 'package:helpdesk_mobile/data/models/category_model.dart';
 import 'package:helpdesk_mobile/data/models/employee_model.dart';
@@ -242,11 +243,106 @@ class CustomerTicketRepository {
             .map((e) => TicketModel.fromJson(e as Map<String, dynamic>))
             .toList();
 
-        return ApiResponse.success(tickets);
+        // Parse pagination meta from top-level or nested paginated response
+        PaginationMeta? meta;
+        if (responseData['meta'] is Map) {
+          meta = PaginationMeta.fromJson(
+            responseData['meta'] as Map<String, dynamic>,
+          );
+        } else if (rawData is Map && rawData['meta'] is Map) {
+          meta = PaginationMeta.fromJson(
+            rawData['meta'] as Map<String, dynamic>,
+          );
+        }
+
+        return ApiResponse.success(tickets, meta: meta);
       }
 
       return ApiResponse.error(
         responseData['message'] ?? 'Failed to fetch tickets',
+        statusCode: response.statusCode,
+      );
+    } catch (e) {
+      return ApiResponse.error('Network error: ${e.toString()}');
+    }
+  }
+
+  /// Get CSAT ticket list for customer.
+  Future<ApiResponse<List<TicketModel>>> getCsatTickets({
+    String csatStatus = 'pending',
+    String? ticketStatus,
+    String? search,
+    String? startDate,
+    String? endDate,
+    int perPage = 20,
+    int page = 1,
+  }) async {
+    try {
+      final token = await _getToken();
+      if (token == null) return ApiResponse.error('No token found');
+
+      final queryParams = <String, String>{
+        'csat_status': csatStatus,
+        'per_page': perPage.toString(),
+        'page': page.toString(),
+      };
+
+      final isValidTicketStatus =
+          ticketStatus == 'Closed' || ticketStatus == 'Solved';
+      if (isValidTicketStatus) {
+        queryParams['ticket_status'] = ticketStatus!;
+      }
+      if (search != null && search.isNotEmpty) queryParams['search'] = search;
+      if (startDate != null && startDate.isNotEmpty) {
+        queryParams['start_date'] = startDate;
+      }
+      if (endDate != null && endDate.isNotEmpty) {
+        queryParams['end_date'] = endDate;
+      }
+
+      final url = Uri.parse(
+        '${ApiConfig.baseUrl}${ApiConfig.customerCsatTickets}',
+      ).replace(queryParameters: queryParams);
+
+      final response = await http.get(
+        url,
+        headers: ApiConfig.headers(token: token),
+      );
+
+      final Map<String, dynamic> responseData = jsonDecode(response.body);
+      _checkUnauthorized(response.statusCode);
+
+      if (response.statusCode == 200) {
+        final rawData = responseData['data'];
+        List ticketsData;
+        if (rawData is List) {
+          ticketsData = rawData;
+        } else if (rawData is Map) {
+          ticketsData = rawData['data'] as List? ?? [];
+        } else {
+          ticketsData = responseData['tickets'] as List? ?? [];
+        }
+
+        final tickets = ticketsData
+            .map((e) => TicketModel.fromJson(e as Map<String, dynamic>))
+            .toList();
+
+        PaginationMeta? meta;
+        if (responseData['meta'] is Map) {
+          meta = PaginationMeta.fromJson(
+            responseData['meta'] as Map<String, dynamic>,
+          );
+        } else if (rawData is Map && rawData['meta'] is Map) {
+          meta = PaginationMeta.fromJson(
+            rawData['meta'] as Map<String, dynamic>,
+          );
+        }
+
+        return ApiResponse.success(tickets, meta: meta);
+      }
+
+      return ApiResponse.error(
+        responseData['message'] ?? 'Failed to fetch CSAT tickets',
         statusCode: response.statusCode,
       );
     } catch (e) {
@@ -305,13 +401,9 @@ class CustomerTicketRepository {
   /// Create new ticket
   Future<ApiResponse<TicketModel>> createTicket({
     required String subject,
-    required int categoryId,
     required String message,
     required String requestToUserId,
     String? requestToOther,
-    String? project,
-    int? subCategory,
-    String? envatoSupport,
     List<File>? files,
   }) async {
     try {
@@ -330,19 +422,13 @@ class CustomerTicketRepository {
 
         // Add fields
         request.fields['subject'] = subject;
-        request.fields['category_id'] = categoryId.toString();
         request.fields['message'] = message;
+        request.fields['description'] = message;
         request.fields['request_to_user_id'] = requestToUserId;
+        request.fields['request_to'] = requestToUserId;
 
         if (requestToOther != null) {
           request.fields['request_to_other'] = requestToOther;
-        }
-        if (project != null) request.fields['project'] = project;
-        if (subCategory != null) {
-          request.fields['subscategory'] = subCategory.toString();
-        }
-        if (envatoSupport != null) {
-          request.fields['envato_support'] = envatoSupport;
         }
 
         // Add files
@@ -361,13 +447,11 @@ class CustomerTicketRepository {
           headers: ApiConfig.headers(token: token),
           body: jsonEncode({
             'subject': subject,
-            'category_id': categoryId,
             'message': message,
+            'description': message,
             'request_to_user_id': requestToUserId,
+            'request_to': requestToUserId,
             if (requestToOther != null) 'request_to_other': requestToOther,
-            if (project != null) 'project': project,
-            if (subCategory != null) 'subscategory': subCategory,
-            if (envatoSupport != null) 'envato_support': envatoSupport,
           }),
         );
       }
@@ -386,8 +470,25 @@ class CustomerTicketRepository {
         }
       }
 
+      String failureMessage = responseData['message'] ?? 'Failed to create ticket';
+      final rawErrors = responseData['errors'];
+      if (rawErrors is Map<String, dynamic> && rawErrors.isNotEmpty) {
+        final details = <String>[];
+        for (final entry in rawErrors.entries) {
+          final value = entry.value;
+          if (value is List && value.isNotEmpty) {
+            details.add(value.first.toString());
+          } else if (value != null) {
+            details.add(value.toString());
+          }
+        }
+        if (details.isNotEmpty) {
+          failureMessage = details.join(', ');
+        }
+      }
+
       return ApiResponse.error(
-        responseData['message'] ?? 'Failed to create ticket',
+        failureMessage,
         statusCode: response.statusCode,
         errors: responseData['errors'] as Map<String, dynamic>?,
       );
@@ -560,6 +661,84 @@ class CustomerTicketRepository {
         responseData['message'] ?? 'Failed to edit reply',
         statusCode: response.statusCode,
         errors: responseData['errors'] as Map<String, dynamic>?,
+      );
+    } catch (e) {
+      return ApiResponse.error('Network error: ${e.toString()}');
+    }
+  }
+
+  /// Get CSAT rating form for a ticket (dynamic options from SLA point profile).
+  Future<ApiResponse<RatingFormModel>> getRatingForm(String ticketId) async {
+    try {
+      final token = await _getToken();
+      if (token == null) return ApiResponse.error('No token found');
+
+      final url = Uri.parse(
+        '${ApiConfig.baseUrl}${ApiConfig.customerRatingForm(ticketId)}',
+      );
+
+      final response = await http.get(
+        url,
+        headers: ApiConfig.headers(token: token),
+      );
+
+      final Map<String, dynamic> responseData = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        final data = responseData['data'];
+        if (data != null) {
+          return ApiResponse.success(RatingFormModel.fromJson(data));
+        }
+      }
+
+      return ApiResponse.error(
+        responseData['message'] ?? 'Failed to load rating form',
+        statusCode: response.statusCode,
+      );
+    } catch (e) {
+      return ApiResponse.error('Network error: ${e.toString()}');
+    }
+  }
+
+  /// Submit CSAT rating. Returns 409 if already rated.
+  Future<ApiResponse<RatingSubmitResult>> submitRating({
+    required String ticketId,
+    required int rating,
+    String? comment,
+  }) async {
+    try {
+      final token = await _getToken();
+      if (token == null) return ApiResponse.error('No token found');
+
+      final url = Uri.parse(
+        '${ApiConfig.baseUrl}${ApiConfig.customerRating(ticketId)}',
+      );
+
+      final Map<String, dynamic> body = {'rating': rating};
+      if (comment != null && comment.isNotEmpty) body['comment'] = comment;
+
+      final response = await http.post(
+        url,
+        headers: ApiConfig.headers(token: token),
+        body: jsonEncode(body),
+      );
+
+      final Map<String, dynamic> responseData = jsonDecode(response.body);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = responseData['data'];
+        if (data != null) {
+          return ApiResponse.success(
+            RatingSubmitResult.fromJson(data),
+            message: responseData['message'],
+          );
+        }
+      }
+
+      // 409 = already rated
+      return ApiResponse.error(
+        responseData['message'] ?? 'Failed to submit rating',
+        statusCode: response.statusCode,
       );
     } catch (e) {
       return ApiResponse.error('Network error: ${e.toString()}');
