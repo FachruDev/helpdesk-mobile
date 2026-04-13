@@ -239,7 +239,50 @@ class _InternalTicketDetailScreenState
     return apiMessage;
   }
 
+  List<StatusOptionModel> _getVisibleStatusOptions(
+    AvailableStatusModel availableStatuses,
+  ) {
+    return availableStatuses.availableStatuses
+        .where(
+          (option) => _isStatusOptionAllowed(option, availableStatuses.permissions),
+        )
+        .toList();
+  }
+
+  bool _isStatusOptionAllowed(
+    StatusOptionModel option,
+    InternalStatusPermissions? permissions,
+  ) {
+    if (permissions == null) return true;
+
+    final requiredPermission = option.requiresPermission?.toLowerCase();
+    if (requiredPermission == null || requiredPermission.isEmpty) return true;
+
+    if (requiredPermission.contains('hold')) return permissions.canHold;
+    if (requiredPermission.contains('resume')) return permissions.canResume;
+    if (requiredPermission.contains('cancel')) return permissions.canCancel;
+    if (requiredPermission.contains('back') || requiredPermission.contains('new')) {
+      return permissions.canBackNew;
+    }
+
+    return true;
+  }
+
   Future<void> _sendReply() async {
+    final availableStatuses =
+        ref.read(internalAvailableStatusesProvider(widget.ticketId)).asData?.value;
+    final visibleStatusValues = availableStatuses != null
+        ? _getVisibleStatusOptions(availableStatuses)
+            .map((option) => option.value)
+            .toSet()
+        : <String>{};
+
+    final String? statusToSend = (_selectedStatus == null ||
+            visibleStatusValues.isEmpty ||
+            visibleStatusValues.contains(_selectedStatus))
+        ? _selectedStatus
+        : null;
+
     if (_replyController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -251,7 +294,7 @@ class _InternalTicketDetailScreenState
     }
 
     // Validate On-Hold specific fields
-    if (_selectedStatus == 'On-Hold') {
+    if (statusToSend == 'On-Hold') {
       if (_selectedHoldReason == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -262,8 +305,6 @@ class _InternalTicketDetailScreenState
         );
         return;
       }
-      final availableStatuses =
-          ref.read(internalAvailableStatusesProvider(widget.ticketId)).asData?.value;
       HoldReasonOption? selectedOption;
       for (final option in availableStatuses?.holdReasonOptions ?? []) {
         if (option.value == _selectedHoldReason) {
@@ -294,11 +335,11 @@ class _InternalTicketDetailScreenState
     final response = await repository.replyTicket(
       ticketId: widget.ticketId,
       comment: _replyController.text.trim(),
-      status: _selectedStatus,
+      status: statusToSend,
       slaPauseReasonCode:
-          _selectedStatus == 'On-Hold' ? _selectedHoldReason : null,
+        statusToSend == 'On-Hold' ? _selectedHoldReason : null,
       slaPauseReasonNote:
-          _selectedStatus == 'On-Hold' && _holdNoteController.text.isNotEmpty
+        statusToSend == 'On-Hold' && _holdNoteController.text.isNotEmpty
               ? _holdNoteController.text.trim()
               : null,
       resolutionTargetWorkingDays: resolutionTargetDays,
@@ -944,6 +985,14 @@ class _InternalTicketDetailScreenState
   }
 
   Widget _buildReplyInput(AvailableStatusModel? availableStatuses) {
+    final visibleStatusOptions = availableStatuses != null
+      ? _getVisibleStatusOptions(availableStatuses)
+      : <StatusOptionModel>[];
+    final selectedStatusVisible =
+      _selectedStatus == null ||
+      visibleStatusOptions.any((option) => option.value == _selectedStatus);
+    final selectedStatusForForm = selectedStatusVisible ? _selectedStatus : null;
+
     return Container(
       decoration: BoxDecoration(
         color: AppColors.white,
@@ -965,9 +1014,10 @@ class _InternalTicketDetailScreenState
         mainAxisSize: MainAxisSize.min,
         children: [
           // Status Dropdown (show only if available options exist)
-          if (availableStatuses != null && availableStatuses.hasOptions) ...[
+          if (availableStatuses != null && visibleStatusOptions.isNotEmpty) ...[
             DropdownButtonFormField<String>(
-              initialValue: _selectedStatus,
+              isExpanded: true,
+              initialValue: selectedStatusForForm,
               decoration: InputDecoration(
                 labelText: 'Update Status (Optional)',
                 prefixIcon: const Icon(Icons.flag_outlined, size: 20),
@@ -986,27 +1036,19 @@ class _InternalTicketDetailScreenState
                   value: null,
                   child: Text('No change'),
                 ),
-                ...availableStatuses.availableStatuses.map((option) {
+                ...visibleStatusOptions.map((option) {
                   return DropdownMenuItem(
                     value: option.value,
                     child: Row(
-                      mainAxisSize: MainAxisSize.min,
+                      mainAxisSize: MainAxisSize.max,
                       children: [
-                        Flexible(
+                        Expanded(
                           child: Text(
                             option.label,
+                            maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        if (option.hasPermissionRequirement ||
-                            option.hasRoleRequirement) ...[
-                          const SizedBox(width: 8),
-                          Icon(
-                            Icons.lock_outline,
-                            size: 14,
-                            color: AppColors.textHint,
-                          ),
-                        ],
                       ],
                     ),
                   );
@@ -1026,10 +1068,11 @@ class _InternalTicketDetailScreenState
           ],
 
           // On-Hold reason dropdown
-          if (_selectedStatus == 'On-Hold' &&
+          if (selectedStatusForForm == 'On-Hold' &&
               availableStatuses != null &&
               availableStatuses.holdReasonOptions.isNotEmpty) ...[
             DropdownButtonFormField<String>(
+              isExpanded: true,
               initialValue: _selectedHoldReason,
               decoration: InputDecoration(
                 labelText: 'Hold Reason *',
@@ -1047,7 +1090,11 @@ class _InternalTicketDetailScreenState
               items: availableStatuses.holdReasonOptions.map((option) {
                 return DropdownMenuItem(
                   value: option.value,
-                  child: Text(option.label),
+                  child: Text(
+                    option.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 );
               }).toList(),
               onChanged: (value) {
@@ -1061,7 +1108,7 @@ class _InternalTicketDetailScreenState
           ],
 
           // Hold note (only when selected reason requires it)
-          if (_selectedStatus == 'On-Hold' &&
+            if (selectedStatusForForm == 'On-Hold' &&
               _selectedHoldReason != null &&
               availableStatuses != null &&
               availableStatuses.holdReasonOptions
