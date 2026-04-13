@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helpdesk_mobile/config/app_colors.dart';
 import 'package:helpdesk_mobile/data/models/category_model.dart';
 import 'package:helpdesk_mobile/data/models/employee_model.dart';
+import 'package:helpdesk_mobile/data/models/employee_lookup_model.dart';
 import 'package:helpdesk_mobile/data/repository/internal/internal_ticket_repository.dart';
 import 'package:helpdesk_mobile/states/internal/internal_ticket_provider.dart';
 import 'package:helpdesk_mobile/ui/internal/create_ticket/create_ticket_form_fields.dart';
@@ -66,22 +67,28 @@ final internalEmployeeProvider =
 
 class InternalEmployeeState {
   final List<EmployeeModel> employees;
+  final Map<String, String> subjectCategoryOptions;
   final bool isLoading;
   final String? error;
 
   InternalEmployeeState({
     this.employees = const [],
+    this.subjectCategoryOptions =
+        EmployeeLookupModel.defaultSubjectCategoryOptions,
     this.isLoading = false,
     this.error,
   });
 
   InternalEmployeeState copyWith({
     List<EmployeeModel>? employees,
+    Map<String, String>? subjectCategoryOptions,
     bool? isLoading,
     String? error,
   }) {
     return InternalEmployeeState(
       employees: employees ?? this.employees,
+      subjectCategoryOptions:
+          subjectCategoryOptions ?? this.subjectCategoryOptions,
       isLoading: isLoading ?? this.isLoading,
       error: error,
     );
@@ -98,12 +105,16 @@ class InternalEmployeeNotifier extends Notifier<InternalEmployeeState> {
     state = state.copyWith(isLoading: true);
 
     final repository = InternalTicketRepository();
-    final response = await repository.getEmployees(
+    final response = await repository.getEmployeesLookup(
       subjectCategory: subjectCategory,
     );
 
     if (response.success && response.data != null) {
-      state = state.copyWith(employees: response.data!, isLoading: false);
+      state = state.copyWith(
+        employees: response.data!.employees,
+        subjectCategoryOptions: response.data!.subjectCategoryOptions,
+        isLoading: false,
+      );
     } else {
       state = state.copyWith(isLoading: false, error: response.message);
     }
@@ -285,6 +296,8 @@ class _InternalCreateTicketScreenState
                       selectedProject: _selectedProject,
                       selectedEmployee: _selectedEmployee,
                       selectedSubjectCategory: _selectedSubjectCategory,
+                        subjectCategoryOptions:
+                          employeeState.subjectCategoryOptions,
                       selectedEnvatoSupport: _selectedEnvatoSupport,
                       isRequestToOther: _isRequestToOther,
                       selectedFiles: _selectedFiles,

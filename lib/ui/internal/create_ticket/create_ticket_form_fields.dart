@@ -49,6 +49,7 @@ class CreateTicketFormFields extends StatelessWidget {
   final ProjectModel? selectedProject;
   final EmployeeModel? selectedEmployee;
   final String selectedSubjectCategory;
+  final Map<String, String> subjectCategoryOptions;
   final String? selectedEnvatoSupport;
   final bool isRequestToOther;
   final List<File> selectedFiles;
@@ -82,6 +83,7 @@ class CreateTicketFormFields extends StatelessWidget {
     required this.selectedProject,
     required this.selectedEmployee,
     required this.selectedSubjectCategory,
+    required this.subjectCategoryOptions,
     required this.selectedEnvatoSupport,
     required this.isRequestToOther,
     required this.selectedFiles,
@@ -234,16 +236,14 @@ class CreateTicketFormFields extends StatelessWidget {
             labelText: 'Subject Category *',
             prefixIcon: Icon(Icons.topic_outlined),
           ),
-          items: const [
-            DropdownMenuItem(
-              value: 'technical_support',
-              child: Text('Technical Support'),
-            ),
-            DropdownMenuItem(
-              value: 'administration',
-              child: Text('Administration'),
-            ),
-          ],
+          items: subjectCategoryOptions.entries
+              .map(
+                (entry) => DropdownMenuItem(
+                  value: entry.key,
+                  child: Text(entry.value),
+                ),
+              )
+              .toList(),
           onChanged: onSubjectCategoryChanged,
           validator: (value) {
             if (value == null || value.trim().isEmpty) {

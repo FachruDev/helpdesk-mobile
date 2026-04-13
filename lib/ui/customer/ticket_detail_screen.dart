@@ -224,6 +224,13 @@ class _CustomerTicketDetailScreenState
     setState(() => _isReplying = true);
 
     final repository = ref.read(customerReplyTicketProvider);
+    final currentTicket =
+      ref.read(customerTicketDetailProvider(widget.ticketId)).asData?.value;
+    final allowedStatuses = _getAllowedCustomerStatusValues(currentTicket);
+    final statusToSend = _selectedStatus != null &&
+        allowedStatuses.contains(_selectedStatus)
+      ? _selectedStatus
+      : null;
     
     // Handle edit mode vs create mode
     final response = _isEditMode && _editingReply != null
@@ -235,7 +242,7 @@ class _CustomerTicketDetailScreenState
         : await repository.replyTicket(
             ticketId: widget.ticketId,
             comment: _replyController.text.trim(),
-            status: _selectedStatus,
+            status: statusToSend,
             files: _selectedFiles.isNotEmpty ? _selectedFiles : null,
           );
 
@@ -320,13 +327,73 @@ class _CustomerTicketDetailScreenState
         return AppColors.statusNew;
       case 'inprogress':
         return AppColors.statusInProgress;
+      case 'on-hold':
+      case 'suspend':
+        return AppColors.warning;
+      case 'back new':
+      case 're-open':
+        return AppColors.info;
       case 'solved':
         return AppColors.statusSolved;
+      case 'cancelled':
+        return AppColors.error;
       case 'closed':
         return AppColors.statusClosed;
       default:
         return AppColors.statusNew;
     }
+  }
+
+  Set<String> _getAllowedCustomerStatusValues(TicketModel? ticket) {
+    if (ticket == null) {
+      return {'Inprogress', 'Closed', 'Re-Open'};
+    }
+
+    final permissions = ticket.permissions;
+    if (permissions != null) {
+      final allowed = <String>{};
+      if (permissions.canReply) allowed.add('Inprogress');
+      if (permissions.canClose) allowed.add('Closed');
+      if (permissions.canReopen) allowed.add('Re-Open');
+      return allowed;
+    }
+
+    final currentStatus = ticket.status.value.toLowerCase();
+    final allowed = <String>{};
+
+    if (currentStatus == 'new' ||
+        currentStatus == 'inprogress' ||
+        currentStatus == 'back new' ||
+        currentStatus == 're-open') {
+      allowed
+        ..add('Inprogress')
+        ..add('Closed');
+    }
+
+    if (currentStatus == 'closed' || currentStatus == 'solved') {
+      allowed.add('Re-Open');
+    }
+
+    return allowed;
+  }
+
+  bool _isTerminalStatusByValue(TicketModel ticket) {
+    return [
+      'closed',
+      'cancelled',
+      'solved',
+      'suspend',
+      'on-hold',
+    ].contains(ticket.status.value.toLowerCase());
+  }
+
+  bool _canShowReplyInput(TicketModel ticket) {
+    final permissions = ticket.permissions;
+    if (permissions != null) {
+      return permissions.canReply || permissions.canClose || permissions.canReopen;
+    }
+
+    return !_isTerminalStatusByValue(ticket);
   }
 
   @override
@@ -369,7 +436,9 @@ class _CustomerTicketDetailScreenState
   }
 
   Widget _buildTicketDetail(TicketModel ticket, AsyncValue<List<TicketReplyModel>> repliesAsync) {
-    final isTicketClosed = ['closed', 'cancelled', 'solved', 'suspend', 'on-hold'].contains(ticket.status.value.toLowerCase());
+    final isTerminalStatus = _isTerminalStatusByValue(ticket);
+    final canShowReplyInput = _canShowReplyInput(ticket);
+    final canReopen = ticket.permissions?.canReopen ?? false;
     
     return Column(
       children: [
@@ -383,7 +452,9 @@ class _CustomerTicketDetailScreenState
                 left: 16,
                 right: 16,
                 top: 16,
-                bottom: isTicketClosed ? MediaQuery.of(context).padding.bottom + 16 : 16,
+                bottom: canShowReplyInput
+                    ? 16
+                    : MediaQuery.of(context).padding.bottom + 16,
               ),
               child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -402,9 +473,13 @@ class _CustomerTicketDetailScreenState
                 _buildRepliesSection(repliesAsync),
                 
                 // Closed ticket notice
-                if (isTicketClosed) ...[
+                if (isTerminalStatus) ...[
                   const SizedBox(height: 16),
-                  _buildClosedTicketNotice(ticket.status.value, ticket.replyStatus),
+                  _buildClosedTicketNotice(
+                    ticket.status.value,
+                    ticket.replyStatus,
+                    canReopen,
+                  ),
                 ],
               ],
             ),
@@ -413,7 +488,7 @@ class _CustomerTicketDetailScreenState
         ),
 
         // Reply Input (disabled if closed)
-        if (!isTicketClosed) _buildReplyInput(ticket),
+        if (canShowReplyInput) _buildReplyInput(ticket),
       ],
     );
   }
@@ -848,7 +923,11 @@ class _CustomerTicketDetailScreenState
     );
   }
 
-  Widget _buildClosedTicketNotice(String statusValue, String? replyStatus) {
+  Widget _buildClosedTicketNotice(
+    String statusValue,
+    String? replyStatus,
+    bool canReopen,
+  ) {
     final isCancelled = statusValue.toLowerCase() == 'cancelled';
     final statusLower = statusValue.toLowerCase();
     final replyStatusLower = (replyStatus ?? '').toLowerCase();
@@ -890,7 +969,9 @@ class _CustomerTicketDetailScreenState
                       Text(
                         isCancelled
                             ? 'This ticket has been cancelled. No further actions can be taken.'
-                            : 'This ticket has been closed. No further actions can be taken.',
+                            : canReopen
+                                ? 'This ticket is closed. You can reopen it by sending a reply with status Re-Open.'
+                                : 'This ticket has been closed. No further actions can be taken.',
                         style: const TextStyle(
                           fontSize: 13,
                           color: AppColors.textSecondary,
@@ -1214,28 +1295,39 @@ class _CustomerTicketDetailScreenState
   Widget _buildReplyInput(TicketModel ticket) {
     // Get dropdown items based on current ticket status
     List<DropdownMenuItem<String>> getStatusDropdownItems() {
-      final currentStatus = ticket.status.value.toLowerCase();
-      
-      if (currentStatus == 'new') {
-        // Status New: customer can set to New or Solved
-        return const [
-          DropdownMenuItem(value: 'New', child: Text('New')),
-          DropdownMenuItem(value: 'Solved', child: Text('Solved')),
-        ];
-      } else if (currentStatus == 'inprogress') {
-        // Status InProgress: customer can only set to Solved or no change
-        return const [
-          DropdownMenuItem(value: null, child: Text('No change')),
-          DropdownMenuItem(value: 'Solved', child: Text('Solved')),
-        ];
-      }
-      
-      // Default: No change and Solved
-      return const [
-        DropdownMenuItem(value: null, child: Text('No change')),
-        DropdownMenuItem(value: 'Solved', child: Text('Solved')),
+      final allowedStatuses = _getAllowedCustomerStatusValues(ticket);
+
+      final items = <DropdownMenuItem<String>>[
+        const DropdownMenuItem(value: null, child: Text('No change')),
       ];
+
+      if (allowedStatuses.contains('Inprogress')) {
+        items.add(
+          const DropdownMenuItem(
+            value: 'Inprogress',
+            child: Text('In Progress'),
+          ),
+        );
+      }
+      if (allowedStatuses.contains('Closed')) {
+        items.add(
+          const DropdownMenuItem(value: 'Closed', child: Text('Closed')),
+        );
+      }
+      if (allowedStatuses.contains('Re-Open')) {
+        items.add(
+          const DropdownMenuItem(value: 'Re-Open', child: Text('Re-Open')),
+        );
+      }
+
+      return items;
     }
+
+    final allowedStatuses = _getAllowedCustomerStatusValues(ticket);
+    final selectedStatusForForm = _selectedStatus != null &&
+            allowedStatuses.contains(_selectedStatus)
+        ? _selectedStatus
+        : null;
     
     return Container(
       decoration: BoxDecoration(
@@ -1292,7 +1384,7 @@ class _CustomerTicketDetailScreenState
           // Status dropdown (only for new replies, not edit)
           if (!_isEditMode) ...[
             DropdownButtonFormField<String>(
-              initialValue: _selectedStatus,
+              initialValue: selectedStatusForForm,
               decoration: InputDecoration(
                 labelText: 'Update Status (Optional)',
                 prefixIcon: const Icon(Icons.flag_outlined, size: 20),

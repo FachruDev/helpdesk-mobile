@@ -242,30 +242,8 @@ class _InternalTicketDetailScreenState
   List<StatusOptionModel> _getVisibleStatusOptions(
     AvailableStatusModel availableStatuses,
   ) {
-    return availableStatuses.availableStatuses
-        .where(
-          (option) => _isStatusOptionAllowed(option, availableStatuses.permissions),
-        )
-        .toList();
-  }
-
-  bool _isStatusOptionAllowed(
-    StatusOptionModel option,
-    InternalStatusPermissions? permissions,
-  ) {
-    if (permissions == null) return true;
-
-    final requiredPermission = option.requiresPermission?.toLowerCase();
-    if (requiredPermission == null || requiredPermission.isEmpty) return true;
-
-    if (requiredPermission.contains('hold')) return permissions.canHold;
-    if (requiredPermission.contains('resume')) return permissions.canResume;
-    if (requiredPermission.contains('cancel')) return permissions.canCancel;
-    if (requiredPermission.contains('back') || requiredPermission.contains('new')) {
-      return permissions.canBackNew;
-    }
-
-    return true;
+    // Backend is source of truth for status availability.
+    return availableStatuses.availableStatuses;
   }
 
   Future<void> _sendReply() async {
@@ -398,8 +376,16 @@ class _InternalTicketDetailScreenState
         return AppColors.statusNew;
       case 'inprogress':
         return AppColors.statusInProgress;
+      case 'on-hold':
+      case 'suspend':
+        return AppColors.warning;
+      case 'back new':
+      case 're-open':
+        return AppColors.info;
       case 'solved':
         return AppColors.statusSolved;
+      case 'cancelled':
+        return AppColors.error;
       case 'closed':
         return AppColors.statusClosed;
       default:
@@ -415,6 +401,9 @@ class _InternalTicketDetailScreenState
     final repliesAsync = ref.watch(
       internalTicketRepliesProvider(widget.ticketId),
     );
+    final availableStatusesAsync = ref.watch(
+      internalAvailableStatusesProvider(widget.ticketId),
+    );
 
     return Scaffold(
       appBar: AppBar(title: Text(widget.ticketId)),
@@ -423,7 +412,11 @@ class _InternalTicketDetailScreenState
           if (ticket == null) {
             return const Center(child: Text('Ticket not found'));
           }
-          return _buildTicketDetail(ticket, repliesAsync);
+          return _buildTicketDetail(
+            ticket,
+            repliesAsync,
+            availableStatusesAsync,
+          );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, stack) => Center(
@@ -453,10 +446,18 @@ class _InternalTicketDetailScreenState
   Widget _buildTicketDetail(
     TicketModel ticket,
     AsyncValue<List<TicketReplyModel>> repliesAsync,
+    AsyncValue<AvailableStatusModel?> availableStatusesAsync,
   ) {
-    // Check if status is terminal (cannot reply)
-    final isTerminalStatus = ['closed', 'cancelled', 'suspend']
+    final isHardTerminalStatus = ['closed', 'cancelled', 'suspend']
         .contains(ticket.status.value.toLowerCase());
+
+    final canShowReplyInput = availableStatusesAsync.maybeWhen(
+      data: (availableStatuses) {
+        if (availableStatuses == null) return !isHardTerminalStatus;
+        return availableStatuses.hasOptions;
+      },
+      orElse: () => !isHardTerminalStatus,
+    );
 
     return Column(
       children: [
@@ -470,7 +471,9 @@ class _InternalTicketDetailScreenState
                 left: 16,
                 right: 16,
                 top: 16,
-                bottom: isTerminalStatus ? MediaQuery.of(context).padding.bottom + 16 : 16,
+                bottom: canShowReplyInput
+                    ? 16
+                    : MediaQuery.of(context).padding.bottom + 16,
               ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -490,7 +493,7 @@ class _InternalTicketDetailScreenState
                 _buildRepliesSection(repliesAsync),
 
                 // Terminal status notice
-                if (isTerminalStatus) ...[
+                if (!canShowReplyInput) ...[
                   const SizedBox(height: 16),
                   _buildTerminalStatusNotice(ticket.status.displayName),
                 ],
@@ -501,15 +504,14 @@ class _InternalTicketDetailScreenState
         ),
 
         // Reply Input (disabled if terminal status)
-        if (!isTerminalStatus) _buildReplyInputWithStatus(),
+        if (canShowReplyInput) _buildReplyInputWithStatus(availableStatusesAsync),
       ],
     );
   }
 
-  Widget _buildReplyInputWithStatus() {
-    final availableStatusesAsync =
-        ref.watch(internalAvailableStatusesProvider(widget.ticketId));
-
+  Widget _buildReplyInputWithStatus(
+    AsyncValue<AvailableStatusModel?> availableStatusesAsync,
+  ) {
     return availableStatusesAsync.when(
       data: (availableStatuses) => _buildReplyInput(availableStatuses),
       loading: () => _buildReplyInput(null),

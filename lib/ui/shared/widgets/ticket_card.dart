@@ -33,12 +33,20 @@ class TicketCard extends StatelessWidget {
         return AppColors.statusNew;
       case TicketStatus.inProgress:
         return AppColors.statusInProgress;
+      case TicketStatus.onHold:
+        return AppColors.warning;
+      case TicketStatus.backNew:
+        return AppColors.info;
+      case TicketStatus.reOpen:
+        return AppColors.info;
       case TicketStatus.solved:
         return AppColors.statusSolved;
       case TicketStatus.closed:
         return AppColors.statusClosed;
       case TicketStatus.cancelled:
         return AppColors.error;
+      case TicketStatus.suspend:
+        return AppColors.warning;
     }
   }
 

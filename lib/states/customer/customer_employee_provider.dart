@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helpdesk_mobile/data/models/employee_model.dart';
+import 'package:helpdesk_mobile/data/models/employee_lookup_model.dart';
 import 'package:helpdesk_mobile/data/repository/customer/customer_ticket_repository.dart';
 
 // Repository Provider
@@ -12,12 +13,15 @@ final customerEmployeeRepositoryProvider = Provider<CustomerTicketRepository>((
 // Employee State
 class CustomerEmployeeState {
   final List<EmployeeModel> employees;
+  final Map<String, String> subjectCategoryOptions;
   final bool isLoading;
   final String? errorMessage;
   final String subjectCategory;
 
   CustomerEmployeeState({
     this.employees = const [],
+    this.subjectCategoryOptions =
+        EmployeeLookupModel.defaultSubjectCategoryOptions,
     this.isLoading = false,
     this.errorMessage,
     this.subjectCategory = 'technical_support',
@@ -25,12 +29,15 @@ class CustomerEmployeeState {
 
   CustomerEmployeeState copyWith({
     List<EmployeeModel>? employees,
+    Map<String, String>? subjectCategoryOptions,
     bool? isLoading,
     String? errorMessage,
     String? subjectCategory,
   }) {
     return CustomerEmployeeState(
       employees: employees ?? this.employees,
+      subjectCategoryOptions:
+          subjectCategoryOptions ?? this.subjectCategoryOptions,
       isLoading: isLoading ?? this.isLoading,
       errorMessage: errorMessage,
       subjectCategory: subjectCategory ?? this.subjectCategory,
@@ -60,21 +67,22 @@ class CustomerEmployeeNotifier extends Notifier<CustomerEmployeeState> {
     );
 
     try {
-      final response = await _repository.getEmployees(
+      final response = await _repository.getEmployeesLookup(
         subjectCategory: subjectCategory,
       );
       print('📥 [PROVIDER] Repository response received');
       print('   - Success: ${response.success}');
-      print('   - Data count: ${response.data?.length ?? 0}');
+      print('   - Data count: ${response.data?.employees.length ?? 0}');
       print('   - Message: ${response.message ?? "none"}');
 
       if (response.success && response.data != null) {
         print(
-          '✅ [PROVIDER] Setting ${response.data!.length} employees to state',
+          '✅ [PROVIDER] Setting ${response.data!.employees.length} employees to state',
         );
         state = state.copyWith(
           isLoading: false,
-          employees: response.data!,
+          employees: response.data!.employees,
+          subjectCategoryOptions: response.data!.subjectCategoryOptions,
           errorMessage: null,
         );
         print('✅ [PROVIDER] State updated successfully');
@@ -108,14 +116,15 @@ class CustomerEmployeeNotifier extends Notifier<CustomerEmployeeState> {
     );
 
     try {
-      final response = await _repository.getEmployees(
+      final response = await _repository.getEmployeesLookup(
         subjectCategory: nextCategory,
       );
 
       if (response.success && response.data != null) {
         state = state.copyWith(
           isLoading: false,
-          employees: response.data!,
+          employees: response.data!.employees,
+          subjectCategoryOptions: response.data!.subjectCategoryOptions,
           errorMessage: null,
         );
       } else {

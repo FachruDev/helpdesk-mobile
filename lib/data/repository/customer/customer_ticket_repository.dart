@@ -7,6 +7,7 @@ import 'package:helpdesk_mobile/data/models/rating_model.dart';
 import 'package:helpdesk_mobile/data/models/ticket_model.dart';
 import 'package:helpdesk_mobile/data/models/category_model.dart';
 import 'package:helpdesk_mobile/data/models/employee_model.dart';
+import 'package:helpdesk_mobile/data/models/employee_lookup_model.dart';
 import 'package:helpdesk_mobile/data/services/storage_service.dart';
 
 class CustomerTicketRepository {
@@ -115,7 +116,7 @@ class CustomerTicketRepository {
   }
 
   /// Get employees with optional subject category scope filter.
-  Future<ApiResponse<List<EmployeeModel>>> getEmployees({
+  Future<ApiResponse<EmployeeLookupModel>> getEmployeesLookup({
     String? subjectCategory,
   }) async {
     try {
@@ -146,23 +147,17 @@ class CustomerTicketRepository {
       final Map<String, dynamic> responseData = jsonDecode(response.body);
 
       if (response.statusCode == 200) {
-        final employeesData =
-            responseData['data'] ?? responseData['employees'] ?? [];
-        print('📊 [EMPLOYEES] Raw data type: ${employeesData.runtimeType}');
-        print('📊 [EMPLOYEES] Data length: ${(employeesData as List).length}');
+        final lookup = EmployeeLookupModel.fromApiResponse(responseData);
+        print('📊 [EMPLOYEES] Options: ${lookup.subjectCategoryOptions}');
 
-        final employees = (employeesData)
-            .map((e) => EmployeeModel.fromJson(e as Map<String, dynamic>))
-            .toList();
-
-        print('✅ [EMPLOYEES] Parsed ${employees.length} employees');
-        if (employees.isNotEmpty) {
+        print('✅ [EMPLOYEES] Parsed ${lookup.employees.length} employees');
+        if (lookup.employees.isNotEmpty) {
           print(
-            '👤 [EMPLOYEES] First employee: ${employees.first.name} (ID: ${employees.first.id})',
+            '👤 [EMPLOYEES] First employee: ${lookup.employees.first.name} (ID: ${lookup.employees.first.id})',
           );
         }
 
-        return ApiResponse.success(employees);
+        return ApiResponse.success(lookup);
       }
 
       print('❌ [EMPLOYEES] Error: ${responseData['message']}');
@@ -175,6 +170,24 @@ class CustomerTicketRepository {
       print('📚 [EMPLOYEES] Stack trace: $stackTrace');
       return ApiResponse.error('Network error: ${e.toString()}');
     }
+  }
+
+  /// Backward-compatible method returning only employee list.
+  Future<ApiResponse<List<EmployeeModel>>> getEmployees({
+    String? subjectCategory,
+  }) async {
+    final response = await getEmployeesLookup(subjectCategory: subjectCategory);
+    if (response.success && response.data != null) {
+      return ApiResponse.success(
+        response.data!.employees,
+        message: response.message,
+      );
+    }
+
+    return ApiResponse.error(
+      response.message ?? 'Failed to fetch employees',
+      statusCode: response.statusCode,
+    );
   }
 
   /// Get ticket list with filters

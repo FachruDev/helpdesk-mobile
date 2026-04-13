@@ -5,6 +5,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:helpdesk_mobile/config/app_colors.dart';
 import 'package:helpdesk_mobile/data/models/employee_model.dart';
+import 'package:helpdesk_mobile/data/models/employee_lookup_model.dart';
 import 'package:helpdesk_mobile/states/customer/customer_employee_provider.dart';
 import 'package:helpdesk_mobile/states/customer/customer_ticket_provider.dart';
 import 'package:helpdesk_mobile/ui/shared/widgets/searchable_dropdown.dart';
@@ -225,6 +226,9 @@ class _CustomerCreateTicketScreenState
   @override
   Widget build(BuildContext context) {
     final employeeState = ref.watch(customerEmployeeProvider);
+    final subjectCategoryOptions = employeeState.subjectCategoryOptions.isNotEmpty
+        ? employeeState.subjectCategoryOptions
+        : EmployeeLookupModel.defaultSubjectCategoryOptions;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Create Ticket')),
@@ -266,16 +270,14 @@ class _CustomerCreateTicketScreenState
                         labelText: 'Subject Category *',
                         prefixIcon: Icon(Icons.topic_outlined),
                       ),
-                      items: const [
-                        DropdownMenuItem(
-                          value: 'technical_support',
-                          child: Text('Technical Support'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'administration',
-                          child: Text('Administration'),
-                        ),
-                      ],
+                      items: subjectCategoryOptions.entries
+                          .map(
+                            (entry) => DropdownMenuItem(
+                              value: entry.key,
+                              child: Text(entry.value),
+                            ),
+                          )
+                          .toList(),
                       onChanged: (value) async {
                         if (value == null || value == _selectedSubjectCategory) {
                           return;

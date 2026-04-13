@@ -7,6 +7,7 @@ import 'package:helpdesk_mobile/data/models/available_status_model.dart';
 import 'package:helpdesk_mobile/data/models/ticket_model.dart';
 import 'package:helpdesk_mobile/data/models/category_model.dart';
 import 'package:helpdesk_mobile/data/models/employee_model.dart';
+import 'package:helpdesk_mobile/data/models/employee_lookup_model.dart';
 import 'package:helpdesk_mobile/data/services/storage_service.dart';
 
 class InternalTicketRepository {
@@ -86,7 +87,7 @@ class InternalTicketRepository {
   }
 
   /// Get employees with optional subject category scope filter.
-  Future<ApiResponse<List<EmployeeModel>>> getEmployees({
+  Future<ApiResponse<EmployeeLookupModel>> getEmployeesLookup({
     String? subjectCategory,
   }) async {
     try {
@@ -109,13 +110,8 @@ class InternalTicketRepository {
       final Map<String, dynamic> responseData = jsonDecode(response.body);
 
       if (response.statusCode == 200) {
-        final employeesData =
-            responseData['data'] ?? responseData['employees'] ?? [];
-        final employees = (employeesData as List)
-            .map((e) => EmployeeModel.fromJson(e))
-            .toList();
-
-        return ApiResponse.success(employees);
+        final lookup = EmployeeLookupModel.fromApiResponse(responseData);
+        return ApiResponse.success(lookup);
       }
 
       return ApiResponse.error(
@@ -125,6 +121,24 @@ class InternalTicketRepository {
     } catch (e) {
       return ApiResponse.error('Network error: ${e.toString()}');
     }
+  }
+
+  /// Backward-compatible method returning only employee list.
+  Future<ApiResponse<List<EmployeeModel>>> getEmployees({
+    String? subjectCategory,
+  }) async {
+    final response = await getEmployeesLookup(subjectCategory: subjectCategory);
+    if (response.success && response.data != null) {
+      return ApiResponse.success(
+        response.data!.employees,
+        message: response.message,
+      );
+    }
+
+    return ApiResponse.error(
+      response.message ?? 'Failed to fetch employees',
+      statusCode: response.statusCode,
+    );
   }
 
   /// Get ticket list with filters
