@@ -85,15 +85,22 @@ class InternalTicketRepository {
     }
   }
 
-  /// Get all employees
-  Future<ApiResponse<List<EmployeeModel>>> getEmployees() async {
+  /// Get employees with optional subject category scope filter.
+  Future<ApiResponse<List<EmployeeModel>>> getEmployees({
+    String? subjectCategory,
+  }) async {
     try {
       final token = await _getToken();
       if (token == null) return ApiResponse.error('No token found');
 
+      final queryParams = <String, String>{};
+      if (subjectCategory != null && subjectCategory.isNotEmpty) {
+        queryParams['subject_category'] = subjectCategory;
+      }
+
       final url = Uri.parse(
         '${ApiConfig.baseUrl}${ApiConfig.internalEmployees}',
-      );
+      ).replace(queryParameters: queryParams.isEmpty ? null : queryParams);
       final response = await http.get(
         url,
         headers: ApiConfig.headers(token: token),
@@ -445,6 +452,7 @@ class InternalTicketRepository {
   Future<ApiResponse<TicketModel>> createTicket({
     required String email,
     required String subject,
+    required String subjectCategory,
     required int categoryId,
     required String message,
     required String requestToUserId,
@@ -466,6 +474,7 @@ class InternalTicketRepository {
         final body = {
           'email': email,
           'subject': subject,
+          'subject_category': subjectCategory,
           'category_id': categoryId,
           'message': message,
           'request_to_user_id': requestToUserId,
@@ -508,6 +517,7 @@ class InternalTicketRepository {
 
         request.fields['email'] = email;
         request.fields['subject'] = subject;
+        request.fields['subject_category'] = subjectCategory;
         request.fields['category_id'] = categoryId.toString();
         request.fields['message'] = message;
         request.fields['request_to_user_id'] = requestToUserId;

@@ -21,6 +21,8 @@ class TicketModel {
   final String? customerEmail;
   final String? assignedTo;
   final String? ticketOption;
+  final String? subjectCategory;
+  final String? subjectCategoryLabel;
   final DateTime createdAt;
   final DateTime? updatedAt;
   final DateTime? lastReply; // From API: last_reply
@@ -57,6 +59,8 @@ class TicketModel {
     this.customerEmail,
     this.assignedTo,
     this.ticketOption,
+    this.subjectCategory,
+    this.subjectCategoryLabel,
     required this.createdAt,
     this.updatedAt,
     this.lastReply,
@@ -97,6 +101,8 @@ class TicketModel {
       customerEmail: json['customer_email'] ?? json['customer']?['email'],
       assignedTo: json['assigned_to'],
       ticketOption: json['ticket_option']?.toString(),
+        subjectCategory: json['subject_category']?.toString(),
+        subjectCategoryLabel: json['subject_category_label']?.toString(),
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'])
           : DateTime.now(),
@@ -167,6 +173,8 @@ class TicketModel {
       'customer_email': customerEmail,
       'assigned_to': assignedTo,
       'ticket_option': ticketOption,
+      'subject_category': subjectCategory,
+      'subject_category_label': subjectCategoryLabel,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt?.toIso8601String(),
       'replies': replies?.map((e) => e.toJson()).toList(),

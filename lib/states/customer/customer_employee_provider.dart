@@ -14,22 +14,26 @@ class CustomerEmployeeState {
   final List<EmployeeModel> employees;
   final bool isLoading;
   final String? errorMessage;
+  final String subjectCategory;
 
   CustomerEmployeeState({
     this.employees = const [],
     this.isLoading = false,
     this.errorMessage,
+    this.subjectCategory = 'technical_support',
   });
 
   CustomerEmployeeState copyWith({
     List<EmployeeModel>? employees,
     bool? isLoading,
     String? errorMessage,
+    String? subjectCategory,
   }) {
     return CustomerEmployeeState(
       employees: employees ?? this.employees,
       isLoading: isLoading ?? this.isLoading,
       errorMessage: errorMessage,
+      subjectCategory: subjectCategory ?? this.subjectCategory,
     );
   }
 }
@@ -45,21 +49,20 @@ class CustomerEmployeeNotifier extends Notifier<CustomerEmployeeState> {
   }
 
   // Fetch employees
-  Future<void> fetchEmployees() async {
+  Future<void> fetchEmployees({String subjectCategory = 'technical_support'}) async {
     print('\n========== FETCH EMPLOYEES START ==========');
 
-    if (state.employees.isNotEmpty) {
-      print(
-        '⏭️ [PROVIDER] Employees already loaded: ${state.employees.length}',
-      );
-      return;
-    }
-
     print('🔄 [PROVIDER] Starting to fetch employees...');
-    state = state.copyWith(isLoading: true, errorMessage: null);
+    state = state.copyWith(
+      isLoading: true,
+      errorMessage: null,
+      subjectCategory: subjectCategory,
+    );
 
     try {
-      final response = await _repository.getEmployees();
+      final response = await _repository.getEmployees(
+        subjectCategory: subjectCategory,
+      );
       print('📥 [PROVIDER] Repository response received');
       print('   - Success: ${response.success}');
       print('   - Data count: ${response.data?.length ?? 0}');
@@ -96,11 +99,18 @@ class CustomerEmployeeNotifier extends Notifier<CustomerEmployeeState> {
   }
 
   // Refresh employees
-  Future<void> refreshEmployees() async {
-    state = state.copyWith(isLoading: true, errorMessage: null);
+  Future<void> refreshEmployees({String? subjectCategory}) async {
+    final nextCategory = subjectCategory ?? state.subjectCategory;
+    state = state.copyWith(
+      isLoading: true,
+      errorMessage: null,
+      subjectCategory: nextCategory,
+    );
 
     try {
-      final response = await _repository.getEmployees();
+      final response = await _repository.getEmployees(
+        subjectCategory: nextCategory,
+      );
 
       if (response.success && response.data != null) {
         state = state.copyWith(

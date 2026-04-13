@@ -3,12 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:html_editor_enhanced/html_editor.dart';
 import 'package:helpdesk_mobile/config/app_colors.dart';
 import 'package:helpdesk_mobile/data/models/employee_model.dart';
 import 'package:helpdesk_mobile/states/customer/customer_employee_provider.dart';
 import 'package:helpdesk_mobile/states/customer/customer_ticket_provider.dart';
-import 'package:helpdesk_mobile/ui/shared/widgets/html_editor_field.dart';
 import 'package:helpdesk_mobile/ui/shared/widgets/searchable_dropdown.dart';
 
 // Helper class for Request To dropdown
@@ -22,7 +20,7 @@ class RequestToOption {
   factory RequestToOption.fromEmployee(EmployeeModel employee) {
     return RequestToOption(
       id: employee.id.toString(),
-      name: employee.name,
+      name: employee.effectiveName,
       isOther: false,
     );
   }
@@ -54,11 +52,11 @@ class _CustomerCreateTicketScreenState
     extends ConsumerState<CustomerCreateTicketScreen> {
   final _formKey = GlobalKey<FormState>();
   final _subjectController = TextEditingController();
-  final _messageController = HtmlEditorController();
-  final _messageFieldKey = GlobalKey<HtmlEditorFieldState>();
+  final _messageController = TextEditingController();
   final _requestToOtherController = TextEditingController();
 
   EmployeeModel? _selectedEmployee;
+  String _selectedSubjectCategory = 'technical_support';
   bool _isRequestToOther = false;
   final List<File> _selectedFiles = [];
   bool _isSubmitting = false;
@@ -71,13 +69,16 @@ class _CustomerCreateTicketScreenState
     super.initState();
     // Load employees
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(customerEmployeeProvider.notifier).fetchEmployees();
+      ref
+          .read(customerEmployeeProvider.notifier)
+          .fetchEmployees(subjectCategory: _selectedSubjectCategory);
     });
   }
 
   @override
   void dispose() {
     _subjectController.dispose();
+    _messageController.dispose();
     _requestToOtherController.dispose();
     super.dispose();
   }
@@ -169,11 +170,6 @@ class _CustomerCreateTicketScreenState
   Future<void> _submitTicket() async {
     if (!_formKey.currentState!.validate()) return;
 
-    // Validate HTML editor
-    final messageValid =
-        await _messageFieldKey.currentState?.validate() ?? false;
-    if (!messageValid) return;
-
     if (_isRequestToOther && _requestToOtherController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -186,12 +182,13 @@ class _CustomerCreateTicketScreenState
 
     setState(() => _isSubmitting = true);
 
-    final messageHtml = await _messageController.getText();
+  final messageText = _messageController.text.trim();
     final response = await ref
         .read(customerTicketProvider.notifier)
         .createTicket(
           subject: _subjectController.text.trim(),
-          message: messageHtml,
+          subjectCategory: _selectedSubjectCategory,
+      message: messageText,
           requestToUserId: _isRequestToOther
               ? 'other'
               : (_selectedEmployee?.id.toString() ?? 'other'),
@@ -263,18 +260,61 @@ class _CustomerCreateTicketScreenState
                     ),
                     const SizedBox(height: 16),
 
-                    // Message
-                    HtmlEditorField(
-                      key: _messageFieldKey,
-                      controller: _messageController,
-                      labelText: 'Message *',
-                      hintText: 'Describe your issue',
-                      height: 300,
+                    DropdownButtonFormField<String>(
+                      initialValue: _selectedSubjectCategory,
+                      decoration: const InputDecoration(
+                        labelText: 'Subject Category *',
+                        prefixIcon: Icon(Icons.topic_outlined),
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'technical_support',
+                          child: Text('Technical Support'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'administration',
+                          child: Text('Administration'),
+                        ),
+                      ],
+                      onChanged: (value) async {
+                        if (value == null || value == _selectedSubjectCategory) {
+                          return;
+                        }
+
+                        setState(() {
+                          _selectedSubjectCategory = value;
+                          _selectedEmployee = null;
+                          _selectedRequestTo = null;
+                          _isRequestToOther = false;
+                          _requestToOtherController.clear();
+                        });
+
+                        await ref
+                            .read(customerEmployeeProvider.notifier)
+                            .fetchEmployees(subjectCategory: value);
+                      },
                       validator: (value) {
-                        if (value == null ||
-                            value.trim().isEmpty ||
-                            value == '<p></p>' ||
-                            value == '<p><br></p>') {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Subject category is required';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Message
+                    TextFormField(
+                      controller: _messageController,
+                      minLines: 6,
+                      maxLines: 10,
+                      decoration: const InputDecoration(
+                        labelText: 'Message *',
+                        hintText: 'Describe your issue',
+                        alignLabelWithHint: true,
+                        prefixIcon: Icon(Icons.message_outlined),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
                           return 'Message is required';
                         }
                         return null;

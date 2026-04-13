@@ -151,6 +151,7 @@ class CustomerTicketNotifier extends Notifier<CustomerTicketState> {
   // Create ticket
   Future<ApiResponse<TicketModel>> createTicket({
     required String subject,
+    required String subjectCategory,
     required String message,
     required String requestToUserId,
     String? requestToOther,
@@ -159,6 +160,7 @@ class CustomerTicketNotifier extends Notifier<CustomerTicketState> {
     try {
       return await _repository.createTicket(
         subject: subject,
+        subjectCategory: subjectCategory,
         message: message,
         requestToUserId: requestToUserId,
         requestToOther: requestToOther,

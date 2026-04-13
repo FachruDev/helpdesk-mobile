@@ -1,14 +1,12 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:html_editor_enhanced/html_editor.dart';
 import 'package:helpdesk_mobile/config/app_colors.dart';
 import 'package:helpdesk_mobile/data/models/category_model.dart';
 import 'package:helpdesk_mobile/data/models/employee_model.dart';
 import 'package:helpdesk_mobile/data/repository/internal/internal_ticket_repository.dart';
 import 'package:helpdesk_mobile/states/internal/internal_ticket_provider.dart';
 import 'package:helpdesk_mobile/ui/internal/create_ticket/create_ticket_form_fields.dart';
-import 'package:helpdesk_mobile/ui/shared/widgets/html_editor_field.dart';
 
 // Provider for categories
 final internalCategoryProvider =
@@ -96,11 +94,13 @@ class InternalEmployeeNotifier extends Notifier<InternalEmployeeState> {
     return InternalEmployeeState();
   }
 
-  Future<void> fetchEmployees() async {
+  Future<void> fetchEmployees({String subjectCategory = 'technical_support'}) async {
     state = state.copyWith(isLoading: true);
 
     final repository = InternalTicketRepository();
-    final response = await repository.getEmployees();
+    final response = await repository.getEmployees(
+      subjectCategory: subjectCategory,
+    );
 
     if (response.success && response.data != null) {
       state = state.copyWith(employees: response.data!, isLoading: false);
@@ -123,9 +123,10 @@ class _InternalCreateTicketScreenState
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _subjectController = TextEditingController();
-  final _messageController = HtmlEditorController();
-  final _messageFieldKey = GlobalKey<HtmlEditorFieldState>();
+  final _messageController = TextEditingController();
   final _requestToOtherController = TextEditingController();
+
+  String _selectedSubjectCategory = 'technical_support';
 
   CategoryModel? _selectedCategory;
   SubCategoryModel? _selectedSubCategory;
@@ -148,7 +149,9 @@ class _InternalCreateTicketScreenState
     // Load categories and employees
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(internalCategoryProvider.notifier).fetchCategories();
-      ref.read(internalEmployeeProvider.notifier).fetchEmployees();
+      ref
+          .read(internalEmployeeProvider.notifier)
+          .fetchEmployees(subjectCategory: _selectedSubjectCategory);
     });
   }
 
@@ -156,6 +159,7 @@ class _InternalCreateTicketScreenState
   void dispose() {
     _emailController.dispose();
     _subjectController.dispose();
+    _messageController.dispose();
     _requestToOtherController.dispose();
     super.dispose();
   }
@@ -184,10 +188,6 @@ class _InternalCreateTicketScreenState
   Future<void> _submitTicket() async {
     if (!_formKey.currentState!.validate()) return;
 
-    // Validate HTML editor
-    final messageValid = await _messageFieldKey.currentState?.validate() ?? false;
-    if (!messageValid) return;
-
     if (_selectedCategory == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -210,14 +210,15 @@ class _InternalCreateTicketScreenState
 
     setState(() => _isSubmitting = true);
 
-    final messageHtml = await _messageController.getText();
+  final messageText = _messageController.text.trim();
     final success = await ref
         .read(internalTicketProvider.notifier)
         .createTicket(
           email: _emailController.text.trim(),
           subject: _subjectController.text.trim(),
+          subjectCategory: _selectedSubjectCategory,
           categoryId: _selectedCategory!.id,
-          message: messageHtml,
+      message: messageText,
           requestToUserId: _isRequestToOther
               ? 'other'
               : (_selectedEmployee?.id.toString() ?? 'other'),
@@ -278,12 +279,12 @@ class _InternalCreateTicketScreenState
                       emailController: _emailController,
                       subjectController: _subjectController,
                       messageController: _messageController,
-                      messageFieldKey: _messageFieldKey,
                       requestToOtherController: _requestToOtherController,
                       selectedCategory: _selectedCategory,
                       selectedSubCategory: _selectedSubCategory,
                       selectedProject: _selectedProject,
                       selectedEmployee: _selectedEmployee,
+                      selectedSubjectCategory: _selectedSubjectCategory,
                       selectedEnvatoSupport: _selectedEnvatoSupport,
                       isRequestToOther: _isRequestToOther,
                       selectedFiles: _selectedFiles,
@@ -326,6 +327,22 @@ class _InternalCreateTicketScreenState
                           _selectedEmployee = value;
                           _isRequestToOther = false;
                         });
+                      },
+                      onSubjectCategoryChanged: (value) async {
+                        if (value == null || value == _selectedSubjectCategory) {
+                          return;
+                        }
+
+                        setState(() {
+                          _selectedSubjectCategory = value;
+                          _selectedEmployee = null;
+                          _isRequestToOther = false;
+                          _requestToOtherController.clear();
+                        });
+
+                        await ref
+                            .read(internalEmployeeProvider.notifier)
+                            .fetchEmployees(subjectCategory: value);
                       },
                       onRequestToOtherChanged: (value) {
                         setState(() {

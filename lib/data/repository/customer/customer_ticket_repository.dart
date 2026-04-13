@@ -114,8 +114,10 @@ class CustomerTicketRepository {
     }
   }
 
-  /// Get all employees
-  Future<ApiResponse<List<EmployeeModel>>> getEmployees() async {
+  /// Get employees with optional subject category scope filter.
+  Future<ApiResponse<List<EmployeeModel>>> getEmployees({
+    String? subjectCategory,
+  }) async {
     try {
       final token = await _getToken();
       if (token == null) {
@@ -123,9 +125,14 @@ class CustomerTicketRepository {
         return ApiResponse.error('No token found');
       }
 
+      final queryParams = <String, String>{};
+      if (subjectCategory != null && subjectCategory.isNotEmpty) {
+        queryParams['subject_category'] = subjectCategory;
+      }
+
       final url = Uri.parse(
         '${ApiConfig.baseUrl}${ApiConfig.customerEmployees}',
-      );
+      ).replace(queryParameters: queryParams.isEmpty ? null : queryParams);
       print('🌐 [EMPLOYEES] Calling: $url');
 
       final response = await http.get(
@@ -401,6 +408,7 @@ class CustomerTicketRepository {
   /// Create new ticket
   Future<ApiResponse<TicketModel>> createTicket({
     required String subject,
+    required String subjectCategory,
     required String message,
     required String requestToUserId,
     String? requestToOther,
@@ -422,6 +430,7 @@ class CustomerTicketRepository {
 
         // Add fields
         request.fields['subject'] = subject;
+        request.fields['subject_category'] = subjectCategory;
         request.fields['message'] = message;
         request.fields['description'] = message;
         request.fields['request_to_user_id'] = requestToUserId;
@@ -447,6 +456,7 @@ class CustomerTicketRepository {
           headers: ApiConfig.headers(token: token),
           body: jsonEncode({
             'subject': subject,
+            'subject_category': subjectCategory,
             'message': message,
             'description': message,
             'request_to_user_id': requestToUserId,

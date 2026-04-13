@@ -2,11 +2,9 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:html_editor_enhanced/html_editor.dart';
 import 'package:helpdesk_mobile/config/app_colors.dart';
 import 'package:helpdesk_mobile/data/models/category_model.dart';
 import 'package:helpdesk_mobile/data/models/employee_model.dart';
-import 'package:helpdesk_mobile/ui/shared/widgets/html_editor_field.dart';
 import 'package:helpdesk_mobile/ui/shared/widgets/searchable_dropdown.dart';
 
 // Helper class for Request To dropdown
@@ -20,7 +18,7 @@ class RequestToOption {
   factory RequestToOption.fromEmployee(EmployeeModel employee) {
     return RequestToOption(
       id: employee.id.toString(),
-      name: employee.name,
+      name: employee.effectiveName,
       isOther: false,
     );
   }
@@ -43,14 +41,14 @@ class RequestToOption {
 class CreateTicketFormFields extends StatelessWidget {
   final TextEditingController emailController;
   final TextEditingController subjectController;
-  final HtmlEditorController messageController;
-  final GlobalKey<HtmlEditorFieldState> messageFieldKey;
+  final TextEditingController messageController;
   final TextEditingController requestToOtherController;
 
   final CategoryModel? selectedCategory;
   final SubCategoryModel? selectedSubCategory;
   final ProjectModel? selectedProject;
   final EmployeeModel? selectedEmployee;
+  final String selectedSubjectCategory;
   final String? selectedEnvatoSupport;
   final bool isRequestToOther;
   final List<File> selectedFiles;
@@ -67,6 +65,7 @@ class CreateTicketFormFields extends StatelessWidget {
   final ValueChanged<SubCategoryModel?> onSubCategoryChanged;
   final ValueChanged<ProjectModel?> onProjectChanged;
   final ValueChanged<EmployeeModel?> onEmployeeChanged;
+  final ValueChanged<String?> onSubjectCategoryChanged;
   final ValueChanged<bool> onRequestToOtherChanged;
   final ValueChanged<String?> onEnvatoSupportChanged;
   final ValueChanged<List<File>> onFilesPicked;
@@ -77,12 +76,12 @@ class CreateTicketFormFields extends StatelessWidget {
     required this.emailController,
     required this.subjectController,
     required this.messageController,
-    required this.messageFieldKey,
     required this.requestToOtherController,
     required this.selectedCategory,
     required this.selectedSubCategory,
     required this.selectedProject,
     required this.selectedEmployee,
+    required this.selectedSubjectCategory,
     required this.selectedEnvatoSupport,
     required this.isRequestToOther,
     required this.selectedFiles,
@@ -96,6 +95,7 @@ class CreateTicketFormFields extends StatelessWidget {
     required this.onSubCategoryChanged,
     required this.onProjectChanged,
     required this.onEmployeeChanged,
+    required this.onSubjectCategoryChanged,
     required this.onRequestToOtherChanged,
     required this.onEnvatoSupportChanged,
     required this.onFilesPicked,
@@ -228,6 +228,32 @@ class CreateTicketFormFields extends StatelessWidget {
         ),
         const SizedBox(height: 16),
 
+        DropdownButtonFormField<String>(
+          initialValue: selectedSubjectCategory,
+          decoration: const InputDecoration(
+            labelText: 'Subject Category *',
+            prefixIcon: Icon(Icons.topic_outlined),
+          ),
+          items: const [
+            DropdownMenuItem(
+              value: 'technical_support',
+              child: Text('Technical Support'),
+            ),
+            DropdownMenuItem(
+              value: 'administration',
+              child: Text('Administration'),
+            ),
+          ],
+          onChanged: onSubjectCategoryChanged,
+          validator: (value) {
+            if (value == null || value.trim().isEmpty) {
+              return 'Subject category is required';
+            }
+            return null;
+          },
+        ),
+        const SizedBox(height: 16),
+
         // Category - Searchable
         SearchableDropdown<CategoryModel>(
           labelText: 'Category *',
@@ -294,14 +320,18 @@ class CreateTicketFormFields extends StatelessWidget {
           const SizedBox(height: 16),
 
         // Message
-        HtmlEditorField(
-          key: messageFieldKey,
+        TextFormField(
           controller: messageController,
-          labelText: 'Message *',
-          hintText: 'Describe the issue',
-          height: 300,
+          minLines: 6,
+          maxLines: 10,
+          decoration: const InputDecoration(
+            labelText: 'Message *',
+            hintText: 'Describe the issue',
+            alignLabelWithHint: true,
+            prefixIcon: Icon(Icons.message_outlined),
+          ),
           validator: (value) {
-            if (value == null || value.trim().isEmpty || value == '<p></p>' || value == '<p><br></p>') {
+            if (value == null || value.trim().isEmpty) {
               return 'Message is required';
             }
             return null;

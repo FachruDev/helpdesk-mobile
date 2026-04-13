@@ -150,6 +150,7 @@ class InternalTicketNotifier extends Notifier<InternalTicketState> {
   Future<bool> createTicket({
     required String email,
     required String subject,
+    required String subjectCategory,
     required int categoryId,
     required String message,
     required String requestToUserId,
@@ -163,6 +164,7 @@ class InternalTicketNotifier extends Notifier<InternalTicketState> {
       final response = await _repository.createTicket(
         email: email,
         subject: subject,
+        subjectCategory: subjectCategory,
         categoryId: categoryId,
         message: message,
         requestToUserId: requestToUserId,
